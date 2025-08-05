@@ -116,7 +116,7 @@ customize it to your needs
 ### Web UI:
 
 ```
-mkdir -p gmapsdata && docker run -v $PWD/gmapsdata:/gmapsdata -p 8080:8080 gosom/google-maps-scraper -data-folder /gmapsdata
+mkdir -p gmapsdata && docker run -v $PWD/gmapsdata:/gmapsdata -p 3000:3000 gosom/google-maps-scraper -data-folder /gmapsdata
 ```
 
 Or dowload the [binary](https://github.com/gosom/google-maps-scraper/releases) for your platform and run it.
@@ -147,7 +147,7 @@ The Google Maps Scraper provides a RESTful API for programmatic management of sc
 - DELETE /api/v1/jobs/{id}: Delete a job
 - GET /api/v1/jobs/{id}/download: Download job results as CSV
 
-For detailed API documentation, refer to the OpenAPI 3.0.3 specification available through Swagger UI or Redoc when running the app https://localhost:8080/api/docs
+For detailed API documentation, refer to the OpenAPI 3.0.3 specification available through Swagger UI or Redoc when running the app https://localhost:3000/api/docs
 
 
 ## 🌟 Support the Project!
@@ -363,7 +363,7 @@ The results are written when they arrive in the `results` file you specified
 try `./google-maps-scraper -h` to see the command line options available:
 ```
   -addr string
-        address to listen on for web server (default ":8080")
+        address to listen on for web server (default ":3000")
   -aws-access-key string
         AWS access key
   -aws-lambda

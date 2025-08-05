@@ -67,7 +67,7 @@ SCRAPER_PID=$!
 
 # Open browser
 sleep 2
-open http://localhost:8080
+open http://localhost:3000
 
 # Idle timeout in seconds
 IDLE_TIMEOUT=6000
