@@ -153,9 +153,11 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 
 func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scrapemate.Response {
 	var resp scrapemate.Response
+	timeout := 180000
 
 	pageResponse, err := page.Goto(j.GetFullURL(), playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
+		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		Timeout:   playwright.Float(timeout),
 	})
 
 	if err != nil {
@@ -170,7 +172,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		return resp
 	}
 
-	const defaultTimeout = 5000
+	const defaultTimeout = 15000
 
 	err = page.WaitForURL(page.URL(), playwright.PageWaitForURLOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
@@ -197,7 +199,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	//nolint:staticcheck // TODO replace with the new playwright API
 	_, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
-		Timeout: playwright.Float(700),
+		Timeout: playwright.Float(2100),
 	})
 
 	var singlePlace bool
@@ -267,7 +269,7 @@ func clickRejectCookiesIfRequired(page playwright.Page) error {
 	// click the cookie reject button if exists
 	sel := `form[action="https://consent.google.com/save"]:first-of-type button:first-of-type`
 
-	const timeout = 500
+	const timeout = 1500
 
 	//nolint:staticcheck // TODO replace with the new playwright API
 	el, err := page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{

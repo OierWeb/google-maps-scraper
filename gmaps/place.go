@@ -108,9 +108,11 @@ func (j *PlaceJob) Process(_ context.Context, resp *scrapemate.Response) (any, [
 
 func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scrapemate.Response {
 	var resp scrapemate.Response
+	timeout := 180000
 
 	pageResponse, err := page.Goto(j.GetURL(), playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
+		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		Timeout:   playwright.Float(timeout),
 	})
 	if err != nil {
 		resp.Error = err
@@ -124,7 +126,7 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 		return resp
 	}
 
-	const defaultTimeout = 5000
+	const defaultTimeout = 15000
 
 	err = page.WaitForURL(page.URL(), playwright.PageWaitForURLOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
