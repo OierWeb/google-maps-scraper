@@ -112,7 +112,7 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 
 	pageResponse, err := page.Goto(j.GetURL(), playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
-		Timeout:   playwright.Float(timeout),
+		Timeout:   float64(timeout),
 	})
 	if err != nil {
 		resp.Error = err

@@ -157,7 +157,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	pageResponse, err := page.Goto(j.GetFullURL(), playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
-		Timeout:   playwright.Float(timeout),
+		Timeout:   float64(timeout),
 	})
 
 	if err != nil {
