@@ -111,7 +111,7 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 	const timeout = 180000
 
 	pageResponse, err := page.Goto(j.GetURL(), playwright.PageGotoOptions{
-		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 		Timeout:   playwright.Float(timeout),
 	})
 	if err != nil {
@@ -126,7 +126,7 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 		return resp
 	}
 
-	const defaultTimeout = 15000
+	const defaultTimeout = 5000
 
 	err = page.WaitForURL(page.URL(), playwright.PageWaitForURLOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
