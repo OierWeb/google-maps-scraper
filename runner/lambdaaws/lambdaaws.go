@@ -140,11 +140,12 @@ func (l *lambdaAwsRunner) getApp(_ context.Context, input lInput, out io.Writer)
 		scrapemateapp.WithExitOnInactivity(time.Minute),
 	}
 
-	// Configure Browserless environment if needed
-	runner.ConfigureBrowserlessEnvironment(l.cfg.BrowserWSEndpoint)
+	// Configure Browserless environment if needed (check environment variable directly)
+	browserWSEndpoint := os.Getenv("BROWSER_WS_ENDPOINT")
+	runner.ConfigureBrowserlessEnvironment(browserWSEndpoint)
 
 	// Configure JavaScript options
-	if runner.ShouldUseBrowserless(l.cfg) {
+	if browserWSEndpoint != "" {
 		// Use Browserless with basic options
 		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
 			opts = append(opts, browserlessOpts...)
