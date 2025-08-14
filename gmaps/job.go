@@ -197,9 +197,12 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 	// check element scroll
 	sel := `div[role='feed']`
 
-	//nolint:staticcheck // TODO replace with the new playwright API
-	_, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
-		Timeout: playwright.Float(700),
+	// Using modern Locator API instead of deprecated WaitForSelector
+	// Increased timeout for VPS with limited resources
+	locator := page.Locator(sel)
+	err = locator.WaitFor(playwright.LocatorWaitForOptions{
+		State:   playwright.WaitForSelectorStateVisible,
+		Timeout: playwright.Float(60000), // 60 segundos para VPS lentos
 	})
 
 	var singlePlace bool
