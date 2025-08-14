@@ -295,12 +295,12 @@ func scroll(ctx context.Context,
 ) (int, error) {
 	expr := `async () => {
 		// Wait for element to be available with timeout
-		const waitForElement = async (selector, timeout = 10000) => {
+		const waitForElement = async (selector, timeout = 180000) => {
 			const startTime = Date.now();
 			while (Date.now() - startTime < timeout) {
 				const el = document.querySelector(selector);
 				if (el) return el;
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise(resolve => setTimeout(resolve, 10000));
 			}
 			throw new Error('Element not found: ' + selector);
 		};
