@@ -26,8 +26,14 @@ func (m *BrowserlessPlaywrightManager) ConnectToBrowserless(ctx context.Context)
 		return m.browser, nil
 	}
 
+	// Initialize Playwright first
+	pw, err := playwright.Run()
+	if err != nil {
+		return nil, err
+	}
+
 	// Use Playwright's connectOverCDP method as recommended by Browserless documentation
-	browser, err := playwright.Chromium().ConnectOverCDP(m.wsEndpoint)
+	browser, err := pw.Chromium.ConnectOverCDP(m.wsEndpoint)
 	if err != nil {
 		return nil, err
 	}
