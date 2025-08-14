@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gosom/scrapemate"
 	"github.com/playwright-community/playwright-go"
 )
@@ -29,8 +28,6 @@ func NewBrowserlessGmapJob(baseJob *GmapJob, wsEndpoint string) *BrowserlessGmap
 
 // BrowserActions implements the scrapemate.IJob interface with Browserless support
 func (j *BrowserlessGmapJob) BrowserActions(ctx context.Context, page playwright.Page) scrapemate.Response {
-	var resp scrapemate.Response
-
 	// If we have a Browserless endpoint, we need to handle the connection differently
 	if j.wsEndpoint != "" && os.Getenv("BROWSERLESS_ENABLED") == "true" {
 		return j.browserlessActions(ctx, page)
