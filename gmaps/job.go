@@ -172,7 +172,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		return resp
 	}
 
-	const defaultTimeout = 5000
+	const defaultTimeout = 180000
 
 	err = page.WaitForURL(page.URL(), playwright.PageWaitForURLOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
@@ -310,8 +310,8 @@ func scroll(ctx context.Context,
 	cnt := 0
 
 	const (
-		timeout  = 5000   // Aumentado a 5 segundos para sitios muy lentos
-		maxWait2 = 12000  // Aumentado a 12 segundos máximo por iteración
+		timeout  = 60000  // Aumentado a 1 minuto para sitios muy lentos
+		maxWait2 = 120000 // Aumentado a 2 minutos máximo por iteración
 	)
 
 	for i := 0; i < maxDepth; i++ {
