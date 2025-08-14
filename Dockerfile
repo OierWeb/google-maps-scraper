@@ -26,8 +26,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy the compiled binary from builder stage
 COPY --from=builder /usr/bin/google-maps-scraper /usr/bin/
 
-# Create non-root user for security
-RUN useradd -r -s /bin/false scraper
+# Create non-root user and necessary directories
+RUN useradd -r -s /bin/false scraper \
+    && mkdir -p /app/webdata /app/cache /app/results \
+    && chown -R scraper:scraper /app
+
+# Set working directory
+WORKDIR /app
 
 # Switch to non-root user
 USER scraper
