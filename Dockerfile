@@ -13,12 +13,16 @@ RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /usr/bin/google-maps-scraper
 # Final stage - Minimal runtime for Browserless connection
 FROM debian:bullseye-slim
 
-# Set environment variables for Browserless mode
+# Set environment variables to FORCE remote browser usage only
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-ENV PLAYWRIGHT_BROWSERS_PATH=0
+ENV PLAYWRIGHT_BROWSERS_PATH=""
 ENV PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
-ENV PLAYWRIGHT_DRIVER_PATH=/tmp/playwright
+ENV PLAYWRIGHT_DRIVER_PATH=""
 ENV HOME=/home/scraper
+ENV PLAYWRIGHT_SKIP_BROWSER_GC=1
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=""
+ENV PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH=""
+ENV PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH=""
 
 # Install only essential runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

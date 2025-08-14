@@ -14,33 +14,36 @@ func ConfigureBrowserlessEnvironment(browserWSEndpoint string) {
 		return
 	}
 
-	// Convert ws:// to wss:// if needed for secure connection
-	wsEndpoint := browserWSEndpoint
-	if strings.HasPrefix(wsEndpoint, "ws://") && !strings.Contains(wsEndpoint, "localhost") && !strings.Contains(wsEndpoint, "127.0.0.1") {
-		wsEndpoint = strings.Replace(wsEndpoint, "ws://", "wss://", 1)
-	}
+	fmt.Printf("🌐 Configuring Browserless connection to: %s\n", browserWSEndpoint)
 
-	fmt.Printf("🌐 Configuring Browserless connection to: %s\n", wsEndpoint)
-
-	// Set environment variables for Browserless connection
-	os.Setenv("PLAYWRIGHT_WS_ENDPOINT", wsEndpoint)
-	os.Setenv("BROWSERLESS_ENABLED", "true")
+	// Set the WebSocket endpoint for Playwright to connect to Browserless
+	os.Setenv("PLAYWRIGHT_WS_ENDPOINT", browserWSEndpoint)
 	
-	// Don't download browsers when using remote Browserless
+	// Critical: Prevent ANY browser downloads or local browser usage
 	os.Setenv("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
+	os.Setenv("PLAYWRIGHT_BROWSERS_PATH", "")
+	os.Setenv("PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS", "1")
+	
+	// Force Playwright to use only remote connections
+	os.Setenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", "")
+	os.Setenv("PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH", "")
+	os.Setenv("PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH", "")
 }
 
 // GetBrowserlessJSOptions returns JS options optimized for Browserless
 func GetBrowserlessJSOptions() []func(*scrapemateapp.Config) error {
-	if !isBrowserlessEnabled() {
+	wsEndpoint := os.Getenv("BROWSER_WS_ENDPOINT")
+	if wsEndpoint == "" {
 		return nil
 	}
 
-	fmt.Println("🚀 Using Browserless remote browser configuration")
+	fmt.Printf("🚀 Using Browserless remote browser at: %s\n", wsEndpoint)
 
-	// Return optimized options for Browserless
+	// Return basic options for Browserless - the connection will be handled by environment variables
 	return []func(*scrapemateapp.Config) error{
-		scrapemateapp.WithJS(scrapemateapp.DisableImages()),
+		scrapemateapp.WithJS(
+			scrapemateapp.DisableImages(),
+		),
 	}
 }
 
