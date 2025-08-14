@@ -253,7 +253,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 }
 
 func waitUntilURLContains(ctx context.Context, page playwright.Page, s string) bool {
-	ticker := time.NewTicker(time.Millisecond * 150)
+	ticker := time.NewTicker(time.Millisecond * 300)
 	defer ticker.Stop()
 
 	for {
@@ -269,26 +269,27 @@ func waitUntilURLContains(ctx context.Context, page playwright.Page, s string) b
 }
 
 func clickRejectCookiesIfRequired(page playwright.Page) error {
-	// click the cookie reject button if exists
+	// click the cookie reject button if exists using modern Locator API
 	sel := `form[action="https://consent.google.com/save"]:first-of-type button:first-of-type`
 
-	const timeout = 500
+	const timeout = 5000 // Increased timeout for VPS compatibility
 
-	//nolint:staticcheck // TODO replace with the new playwright API
-	el, err := page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
+	// Using modern Locator API instead of deprecated WaitForSelector
+	locator := page.Locator(sel)
+	
+	// Try to wait for the element and click it if it exists
+	err := locator.WaitFor(playwright.LocatorWaitForOptions{
+		State:   playwright.WaitForSelectorStateVisible,
 		Timeout: playwright.Float(timeout),
 	})
 
 	if err != nil {
+		// Cookie banner not found or not visible - this is normal, not an error
 		return nil
 	}
 
-	if el == nil {
-		return nil
-	}
-
-	//nolint:staticcheck // TODO replace with the new playwright API
-	return el.Click()
+	// Click the cookie reject button using modern Locator API
+	return locator.Click()
 }
 
 func scroll(ctx context.Context,
