@@ -231,27 +231,6 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	scrollSelector := `div[role='feed']`
 
-	// Check if the scroll element exists before attempting to scroll
-	elementExists, err := page.Evaluate(`() => !!document.querySelector('div[role="feed"]')`)
-	if err != nil {
-		resp.Error = fmt.Errorf("error checking if feed element exists: %w", err)
-		return resp
-	}
-
-	exists, ok := elementExists.(bool)
-	if !ok || !exists {
-		// If the feed element doesn't exist, we can still try to get the page content
-		// This is likely a different type of page or Google Maps UI has changed
-		resp.URL = page.URL()
-		body, err := page.Content()
-		if err != nil {
-			resp.Error = err
-			return resp
-		}
-		resp.Body = []byte(body)
-		return resp
-	}
-
 	_, err = scroll(ctx, page, j.MaxDepth, scrollSelector)
 	if err != nil {
 		resp.Error = err
@@ -316,14 +295,9 @@ func scroll(ctx context.Context,
 ) (int, error) {
 	expr := `async () => {
 		const el = document.querySelector("` + scrollSelector + `");
-		if (!el) {
-			return new Promise((resolve) => {
-				setTimeout(() => resolve(0), %d);
-			});
-		}
 		el.scrollTop = el.scrollHeight;
 
-		return new Promise((resolve) => {
+		return new Promise((resolve, reject) => {
   			setTimeout(() => {
     		resolve(el.scrollHeight);
   			}, %d);
@@ -349,7 +323,7 @@ func scroll(ctx context.Context,
 		}
 
 		// Scroll to the bottom of the page.
-		scrollHeight, err := page.Evaluate(fmt.Sprintf(expr, waitTime2, waitTime2))
+		scrollHeight, err := page.Evaluate(fmt.Sprintf(expr, waitTime2))
 		if err != nil {
 			return cnt, err
 		}
@@ -357,11 +331,6 @@ func scroll(ctx context.Context,
 		height, ok := scrollHeight.(int)
 		if !ok {
 			return cnt, fmt.Errorf("scrollHeight is not an int")
-		}
-
-		// If height is 0, it means the element was not found
-		if height == 0 {
-			return cnt, fmt.Errorf("scroll element not found with selector: %s", scrollSelector)
 		}
 
 		if height == currentScrollHeight {
