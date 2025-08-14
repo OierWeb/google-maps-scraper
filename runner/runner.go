@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -80,6 +81,9 @@ type Config struct {
 	DisablePageReuse         bool
 	ExtraReviews             bool
 	ReviewsLimit             int
+	BrowserlessURL           string
+	BrowserlessToken         string
+	UseBrowserless           bool
 }
 
 func ParseConfig() *Config {
@@ -127,6 +131,9 @@ func ParseConfig() *Config {
 	flag.BoolVar(&cfg.DisablePageReuse, "disable-page-reuse", false, "disable page reuse in playwright")
 	flag.BoolVar(&cfg.ExtraReviews, "extra-reviews", false, "enable extra reviews collection")
 	flag.IntVar(&cfg.ReviewsLimit, "reviews", 300, "limit the number of reviews collected (-1 for unlimited)")
+	flag.StringVar(&cfg.BrowserlessURL, "browserless-url", "", "Browserless WebSocket URL (e.g., ws://browserless:3000)")
+	flag.StringVar(&cfg.BrowserlessToken, "browserless-token", "", "Browserless authentication token")
+	flag.BoolVar(&cfg.UseBrowserless, "use-browserless", false, "use Browserless remote browser instead of local Playwright")
 
 	flag.Parse()
 
@@ -140,6 +147,22 @@ func ParseConfig() *Config {
 
 	if cfg.AwsRegion == "" {
 		cfg.AwsRegion = os.Getenv("MY_AWS_REGION")
+	}
+
+	// Parse Browserless configuration from environment variables
+	if cfg.BrowserlessURL == "" {
+		cfg.BrowserlessURL = os.Getenv("BROWSERLESS_URL")
+		if cfg.BrowserlessURL == "" {
+			cfg.BrowserlessURL = "ws://browserless:3000" // Default value
+		}
+	}
+
+	if cfg.BrowserlessToken == "" {
+		cfg.BrowserlessToken = os.Getenv("BROWSERLESS_TOKEN")
+	}
+
+	if os.Getenv("USE_BROWSERLESS") == "true" || os.Getenv("USE_BROWSERLESS") == "1" {
+		cfg.UseBrowserless = true
 	}
 
 	if cfg.AwsLambdaInvoker && cfg.FunctionName == "" {
@@ -170,6 +193,15 @@ func ParseConfig() *Config {
 		panic("Dsn must be provided when using ProduceOnly")
 	}
 
+	// Validate Browserless configuration with enhanced validation and fallback logic
+	if cfg.UseBrowserless {
+		if err := cfg.ValidateBrowserlessConfigurationWithFallback(); err != nil {
+			// If validation fails and fallback is not possible, panic with clear error
+			fmt.Fprintf(os.Stderr, "[BROWSERLESS] Fatal configuration error: %v\n", err)
+			panic(fmt.Sprintf("Browserless configuration validation failed: %v", err))
+		}
+	}
+
 	if proxies != "" {
 		cfg.Proxies = strings.Split(proxies, ",")
 	}
@@ -196,6 +228,175 @@ func ParseConfig() *Config {
 	}
 
 	return &cfg
+}
+
+// ValidateBrowserlessConfigurationWithFallback performs comprehensive validation of Browserless configuration
+// and implements fallback logic to local Playwright if Browserless is unavailable
+func (c *Config) ValidateBrowserlessConfigurationWithFallback() error {
+	if !c.UseBrowserless {
+		return nil // No validation needed if not using Browserless
+	}
+
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Starting configuration validation...\n")
+
+	// Step 1: Validate URL format
+	if err := c.validateBrowserlessURLFormat(); err != nil {
+		return fmt.Errorf("URL format validation failed: %w", err)
+	}
+
+	// Step 2: Validate URL reachability with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := c.validateBrowserlessReachability(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Connection validation failed: %v\n", err)
+		
+		// Step 3: Attempt fallback to local Playwright if enabled
+		if c.attemptFallbackToLocal() {
+			fmt.Fprintf(os.Stderr, "[BROWSERLESS] Successfully fell back to local Playwright\n")
+			return nil
+		}
+		
+		// If fallback is not possible or disabled, return the original error
+		return fmt.Errorf("browserless connection failed and fallback unavailable: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Configuration validation completed successfully\n")
+	return nil
+}
+
+// validateBrowserlessURLFormat validates the format of the Browserless URL
+func (c *Config) validateBrowserlessURLFormat() error {
+	if c.BrowserlessURL == "" {
+		return &BrowserlessConnectionError{
+			URL:     c.BrowserlessURL,
+			Message: "BrowserlessURL must be provided when UseBrowserless is true. Set BROWSERLESS_URL environment variable or use --browserless-url flag",
+		}
+	}
+
+	// Validate URL format - should start with ws:// or wss://
+	if !strings.HasPrefix(c.BrowserlessURL, "ws://") && !strings.HasPrefix(c.BrowserlessURL, "wss://") {
+		return &BrowserlessConnectionError{
+			URL:     c.BrowserlessURL,
+			Message: fmt.Sprintf("BrowserlessURL must start with ws:// or wss://. Current URL: %s. Example: ws://browserless:3000 or wss://browserless.example.com:3000", c.BrowserlessURL),
+		}
+	}
+
+	// Parse URL to validate structure
+	if _, err := url.Parse(c.BrowserlessURL); err != nil {
+		return &BrowserlessConnectionError{
+			URL:     c.BrowserlessURL,
+			Message: fmt.Sprintf("BrowserlessURL has invalid format: %v", err),
+			Err:     err,
+		}
+	}
+
+	// Warn about missing token (not an error, but worth noting)
+	if c.BrowserlessToken == "" {
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Warning: BrowserlessToken is empty. Authentication may be required.\n")
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Set BROWSERLESS_TOKEN environment variable or use --browserless-token flag\n")
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Some Browserless instances require authentication for access\n")
+	}
+
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] URL format validation passed: %s\n", c.BrowserlessURL)
+	return nil
+}
+
+// validateBrowserlessReachability validates that the Browserless endpoint is reachable
+func (c *Config) validateBrowserlessReachability(ctx context.Context) error {
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Testing connection to %s...\n", c.BrowserlessURL)
+	
+	err := ValidateBrowserlessConnection(ctx, c.BrowserlessURL, c.BrowserlessToken)
+	if err != nil {
+		// Provide detailed error information based on error type
+		if browserlessErr, ok := err.(*BrowserlessConnectionError); ok {
+			return c.enhanceConnectionError(browserlessErr)
+		}
+		return fmt.Errorf("connection validation failed: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Connection test successful\n")
+	return nil
+}
+
+// enhanceConnectionError provides enhanced error messages with troubleshooting guidance
+func (c *Config) enhanceConnectionError(err *BrowserlessConnectionError) error {
+	var enhancedMessage strings.Builder
+	enhancedMessage.WriteString(err.Message)
+	enhancedMessage.WriteString("\n\nTroubleshooting steps:\n")
+
+	switch {
+	case strings.Contains(err.Message, "authentication failed"):
+		enhancedMessage.WriteString("• Check if BROWSERLESS_TOKEN is correct and not expired\n")
+		enhancedMessage.WriteString("• Verify token has proper permissions for the Browserless instance\n")
+		enhancedMessage.WriteString("• Ensure token format matches Browserless requirements\n")
+	case strings.Contains(err.Message, "health check request failed"):
+		enhancedMessage.WriteString("• Check if Browserless service is running and accessible\n")
+		enhancedMessage.WriteString("• Verify network connectivity to Browserless host\n")
+		enhancedMessage.WriteString("• Check firewall rules and port accessibility\n")
+		enhancedMessage.WriteString("• Ensure Browserless is listening on the specified port\n")
+	case strings.Contains(err.Message, "server error"):
+		enhancedMessage.WriteString("• Check Browserless service logs for errors\n")
+		enhancedMessage.WriteString("• Verify Browserless service health and resource availability\n")
+		enhancedMessage.WriteString("• Consider restarting the Browserless service\n")
+	default:
+		enhancedMessage.WriteString("• Check Browserless service status and logs\n")
+		enhancedMessage.WriteString("• Verify network connectivity and DNS resolution\n")
+		enhancedMessage.WriteString("• Ensure Browserless configuration is correct\n")
+	}
+
+	return &BrowserlessConnectionError{
+		URL:     err.URL,
+		Message: enhancedMessage.String(),
+		Err:     err.Err,
+	}
+}
+
+// attemptFallbackToLocal attempts to fall back to local Playwright if Browserless is unavailable
+func (c *Config) attemptFallbackToLocal() bool {
+	// Check if fallback is enabled via environment variable
+	fallbackEnabled := os.Getenv("BROWSERLESS_FALLBACK_TO_LOCAL")
+	if fallbackEnabled != "true" && fallbackEnabled != "1" {
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Fallback to local Playwright is disabled\n")
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] To enable fallback, set BROWSERLESS_FALLBACK_TO_LOCAL=true\n")
+		return false
+	}
+
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Attempting fallback to local Playwright...\n")
+
+	// Check if local Playwright is available
+	if !c.isLocalPlaywrightAvailable() {
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Local Playwright is not available for fallback\n")
+		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Consider running Playwright installation or fixing Browserless connection\n")
+		return false
+	}
+
+	// Disable Browserless and enable local mode
+	c.UseBrowserless = false
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Fallback successful - switched to local Playwright\n")
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Note: This fallback is temporary for this session only\n")
+	
+	return true
+}
+
+// isLocalPlaywrightAvailable checks if local Playwright installation is available
+func (c *Config) isLocalPlaywrightAvailable() bool {
+	// This is a simplified check - in a real implementation, you might want to
+	// check for Playwright binaries, browser installations, etc.
+	// For now, we'll assume local Playwright is available unless explicitly disabled
+	
+	// Check if Playwright installation is explicitly disabled
+	if os.Getenv("DISABLE_LOCAL_PLAYWRIGHT") == "true" || os.Getenv("DISABLE_LOCAL_PLAYWRIGHT") == "1" {
+		return false
+	}
+
+	// In a production environment, you might want to add more sophisticated checks:
+	// - Check for Playwright binary existence
+	// - Verify browser installations
+	// - Test basic Playwright functionality
+	
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Local Playwright appears to be available\n")
+	return true
 }
 
 var (

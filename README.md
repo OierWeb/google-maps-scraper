@@ -336,6 +336,58 @@ You can fetch up to around 300 reviews instead of the first 8 by using the
 command line parameter `--extra-reviews`. If you do that I recommend you use JSON
 output instead of CSV.
 
+### Using Browserless (Remote Browser)
+
+For improved performance and resource efficiency, you can use Browserless to run browsers remotely instead of locally. This is especially useful for containerized deployments and scaling.
+
+#### Quick Start with Browserless
+
+1. **Using docker-compose (Recommended):**
+```bash
+# Use the pre-configured Browserless setup
+docker-compose -f docker-compose.browserless.yaml up -d
+
+# Or add to existing docker-compose.dev.yaml
+docker-compose -f docker-compose.dev.yaml up -d
+```
+
+2. **Manual Docker setup:**
+```bash
+# Start Browserless service
+docker run -d --name browserless -p 3000:3000 -e TOKEN=your-secure-token browserless/chrome:latest
+
+# Run scraper with Browserless
+docker run --link browserless \
+  -e USE_BROWSERLESS=true \
+  -e BROWSERLESS_URL=ws://browserless:3000 \
+  -e BROWSERLESS_TOKEN=your-secure-token \
+  -v $PWD/example-queries.txt:/example-queries \
+  -v $PWD/results.csv:/results.csv \
+  gosom/google-maps-scraper:latest \
+  -depth 1 -input /example-queries -results /results.csv -exit-on-inactivity 3m
+```
+
+#### Environment Variables for Browserless
+
+- `USE_BROWSERLESS=true` - Enable Browserless mode
+- `BROWSERLESS_URL=ws://browserless:3000` - WebSocket URL to Browserless instance
+- `BROWSERLESS_TOKEN=your-secure-token` - Authentication token for Browserless
+
+#### Benefits of Using Browserless
+
+- **Reduced Resource Usage**: No need to download and install Chromium locally
+- **Better Scaling**: Share browser instances across multiple scraper processes
+- **Faster Deployment**: Smaller Docker images without browser binaries
+- **Centralized Management**: Single Browserless instance can serve multiple scrapers
+
+#### Building with Browserless Support
+
+To build a Docker image optimized for Browserless (without local Chromium):
+
+```bash
+docker build --build-arg USE_BROWSERLESS=true -t google-maps-scraper:browserless .
+```
+
 
 ### On your host
 

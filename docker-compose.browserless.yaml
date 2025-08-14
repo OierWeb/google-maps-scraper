@@ -1,0 +1,117 @@
+# Docker Compose configuration for Google Maps Scraper with Browserless
+# This example shows how to deploy the scraper using Browserless for remote browser functionality
+
+services:
+  # Browserless service - provides remote Chrome browser instances
+  browserless:
+    image: browserless/chrome:latest
+    ports:
+      - '3000:3000'
+    environment:
+      # Authentication token for Browserless API
+      - TOKEN=${BROWSERLESS_TOKEN:-your-secure-token-here}
+      # Concurrent browser instances
+      - CONCURRENT=${BROWSERLESS_CONCURRENT:-10}
+      - MAX_CONCURRENT_SESSIONS=${BROWSERLESS_MAX_SESSIONS:-10}
+      # Queue configuration
+      - QUEUE_LENGTH=${BROWSERLESS_QUEUE_LENGTH:-50}
+      # Memory and CPU limits
+      - MAX_MEMORY_PERCENT=${BROWSERLESS_MAX_MEMORY:-95}
+      - MAX_CPU_PERCENT=${BROWSERLESS_MAX_CPU:-95}
+      # Enable debugging (set to false in production)
+      - DEBUG=${BROWSERLESS_DEBUG:-false}
+    restart: "unless-stopped"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource limits to prevent browser instances from consuming too much memory
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Google Maps Scraper service configured to use Browserless
+  gmaps-scraper:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USE_BROWSERLESS: "true"
+    environment:
+      # Browserless configuration
+      - USE_BROWSERLESS=true
+      - BROWSERLESS_URL=ws://browserless:3000
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-your-secure-token-here}
+      
+      # Database configuration
+      - DATABASE_URL=${DATABASE_URL:-postgres://postgres:postgres@db:5432/postgres?sslmode=disable}
+      
+      # Optional: Proxy configuration
+      - PROXY_URL=${PROXY_URL:-}
+      
+      # Optional: Logging configuration
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      
+      # Optional: Rate limiting
+      - RATE_LIMIT=${RATE_LIMIT:-10}
+    depends_on:
+      browserless:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    restart: "unless-stopped"
+    # Resource limits for the scraper
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # PostgreSQL database
+  db:
+    image: postgres:15.2-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes: 
+      - gmaps_data:/var/lib/postgresql/data
+    restart: "unless-stopped"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Database migration service
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./scripts/migrations:/migrations
+    command: [
+      "-path", "/migrations", 
+      "-database", "${DATABASE_URL:-postgres://postgres:postgres@db:5432/postgres?sslmode=disable}", 
+      "up"
+    ]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  gmaps_data:
+    driver: local
+
+# Networks (optional - services will use default network)
+networks:
+  default:
+    driver: bridge

@@ -1,4 +1,39 @@
 services:
+  # Browserless service for remote browser functionality
+  browserless:
+    image: browserless/chrome:latest
+    ports:
+      - '3000:3000'
+    environment:
+      - TOKEN=your-browserless-token
+      - CONCURRENT=10
+      - MAX_CONCURRENT_SESSIONS=10
+      - QUEUE_LENGTH=50
+    restart: "unless-stopped"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Google Maps Scraper service
+  gmaps-scraper:
+    build: 
+      context: .
+      args:
+        USE_BROWSERLESS: "true"
+    environment:
+      # Browserless configuration
+      - USE_BROWSERLESS=true
+      - BROWSERLESS_URL=ws://browserless:3000
+      - BROWSERLESS_TOKEN=your-browserless-token
+      # Database configuration
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/postgres?sslmode=disable
+    depends_on:
+      - browserless
+      - db
+    restart: "unless-stopped"
+
   db:
     image: postgres:15.2-alpine
     environment:

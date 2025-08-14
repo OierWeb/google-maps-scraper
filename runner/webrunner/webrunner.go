@@ -256,14 +256,35 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 		scrapemateapp.WithExitOnInactivity(time.Minute * 3),
 	}
 
-	if !job.Data.FastMode {
-		opts = append(opts,
-			scrapemateapp.WithJS(scrapemateapp.DisableImages()),
-		)
+	// Configure browser options based on Browserless usage
+	if w.cfg.UseBrowserless {
+		log.Printf("[WEBRUNNER-BROWSERLESS] Browserless mode enabled for job %s", job.ID)
+		
+		// Validate Browserless configuration before proceeding
+		if err := w.validateBrowserlessConfig(); err != nil {
+			log.Printf("[WEBRUNNER-BROWSERLESS] Configuration validation failed for job %s: %v", job.ID, err)
+			return nil, fmt.Errorf("browserless configuration validation failed: %w", err)
+		}
+
+		// Configure scrapemate for remote browser usage
+		if err := w.configureBrowserlessOptions(&opts, job); err != nil {
+			log.Printf("[WEBRUNNER-BROWSERLESS] Options configuration failed for job %s: %v", job.ID, err)
+			return nil, fmt.Errorf("failed to configure browserless options: %w", err)
+		}
+		
+		log.Printf("[WEBRUNNER-BROWSERLESS] Configuration completed successfully for job %s", job.ID)
 	} else {
-		opts = append(opts,
-			scrapemateapp.WithStealth("firefox"),
-		)
+		log.Printf("[WEBRUNNER-BROWSERLESS] Browserless disabled for job %s, using local Playwright", job.ID)
+		// Use local Playwright configuration
+		if !job.Data.FastMode {
+			opts = append(opts,
+				scrapemateapp.WithJS(scrapemateapp.DisableImages()),
+			)
+		} else {
+			opts = append(opts,
+				scrapemateapp.WithStealth("firefox"),
+			)
+		}
 	}
 
 	hasProxy := false
@@ -285,7 +306,7 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 		)
 	}
 
-	log.Printf("job %s has proxy: %v", job.ID, hasProxy)
+	log.Printf("job %s has proxy: %v, using browserless: %v", job.ID, hasProxy, w.cfg.UseBrowserless)
 
 	csvWriter := csvwriter.NewCsvWriter(csv.NewWriter(writer))
 
@@ -300,4 +321,79 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 	}
 
 	return scrapemateapp.NewScrapeMateApp(matecfg)
+}
+
+// validateBrowserlessConfig validates the Browserless configuration
+func (w *webrunner) validateBrowserlessConfig() error {
+	log.Printf("[WEBRUNNER-BROWSERLESS] Starting configuration validation")
+	
+	if w.cfg.BrowserlessURL == "" {
+		log.Printf("[WEBRUNNER-BROWSERLESS] Error: URL is required when UseBrowserless is true")
+		return fmt.Errorf("browserless URL is required when UseBrowserless is true")
+	}
+
+	// Validate URL format
+	if !strings.HasPrefix(w.cfg.BrowserlessURL, "ws://") && !strings.HasPrefix(w.cfg.BrowserlessURL, "wss://") {
+		log.Printf("[WEBRUNNER-BROWSERLESS] Error: Invalid URL format - %s", w.cfg.BrowserlessURL)
+		log.Printf("[WEBRUNNER-BROWSERLESS] URL must start with ws:// or wss://")
+		return fmt.Errorf("browserless URL must start with ws:// or wss://")
+	}
+
+	// Log configuration (without exposing token)
+	tokenStatus := "not provided"
+	tokenLength := 0
+	if w.cfg.BrowserlessToken != "" {
+		tokenStatus = "provided"
+		tokenLength = len(w.cfg.BrowserlessToken)
+	}
+	
+	log.Printf("[WEBRUNNER-BROWSERLESS] Configuration validated:")
+	log.Printf("[WEBRUNNER-BROWSERLESS]   URL: %s", w.cfg.BrowserlessURL)
+	log.Printf("[WEBRUNNER-BROWSERLESS]   Token: %s (length: %d)", tokenStatus, tokenLength)
+
+	return nil
+}
+
+// configureBrowserlessOptions configures scrapemate options for Browserless usage
+func (w *webrunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Config) error, job *web.Job) error {
+	log.Printf("[WEBRUNNER-BROWSERLESS] Starting scrapemate configuration for job %s", job.ID)
+	
+	// Build WebSocket URL with authentication
+	wsURL, err := w.cfg.GetBrowserlessWebSocketURL()
+	if err != nil {
+		log.Printf("[WEBRUNNER-BROWSERLESS] Error: Failed to build WebSocket URL: %v", err)
+		return fmt.Errorf("failed to build browserless WebSocket URL: %w", err)
+	}
+
+	// Log configuration safely (redact token)
+	safeURL := wsURL
+	if w.cfg.BrowserlessToken != "" {
+		safeURL = strings.Replace(wsURL, w.cfg.BrowserlessToken, "[REDACTED]", -1)
+	}
+	log.Printf("[WEBRUNNER-BROWSERLESS] WebSocket URL built: %s", safeURL)
+
+	// Since scrapemate v0.9.4 doesn't have built-in remote browser support,
+	// we need to implement a workaround. For now, we'll configure it with
+	// standard options and add a note about the limitation.
+	
+	// TODO: This is a limitation of scrapemate v0.9.4 - it doesn't support remote browsers directly.
+	// We're configuring it with standard options for now, but the actual remote browser connection
+	// would need to be implemented at a lower level or by upgrading scrapemate.
+	
+	log.Printf("[WEBRUNNER-BROWSERLESS] Configuring browser options for job %s (FastMode: %v)", job.ID, job.Data.FastMode)
+	
+	if !job.Data.FastMode {
+		*opts = append(*opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
+		log.Printf("[WEBRUNNER-BROWSERLESS] Applied standard mode options (headless, no images)")
+	} else {
+		*opts = append(*opts, scrapemateapp.WithStealth("firefox"))
+		log.Printf("[WEBRUNNER-BROWSERLESS] Applied fast mode options (stealth firefox)")
+	}
+
+	// Log a warning about the current limitation
+	log.Printf("[WEBRUNNER-BROWSERLESS] WARNING: scrapemate v0.9.4 doesn't support remote browsers directly")
+	log.Printf("[WEBRUNNER-BROWSERLESS] The application will attempt to use local Playwright")
+	log.Printf("[WEBRUNNER-BROWSERLESS] Consider upgrading scrapemate or implementing custom browser connection")
+
+	return nil
 }

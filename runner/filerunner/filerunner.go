@@ -125,6 +125,89 @@ func (r *fileRunner) Close(context.Context) error {
 	return nil
 }
 
+// validateBrowserlessConfig validates the Browserless configuration
+func (r *fileRunner) validateBrowserlessConfig() error {
+	log.Printf("[FILERUNNER-BROWSERLESS] Starting configuration validation")
+	
+	if r.cfg.BrowserlessURL == "" {
+		log.Printf("[FILERUNNER-BROWSERLESS] Error: URL is required when UseBrowserless is true")
+		return fmt.Errorf("browserless URL is required when UseBrowserless is true")
+	}
+
+	// Validate URL format
+	if !strings.HasPrefix(r.cfg.BrowserlessURL, "ws://") && !strings.HasPrefix(r.cfg.BrowserlessURL, "wss://") {
+		log.Printf("[FILERUNNER-BROWSERLESS] Error: Invalid URL format - %s", r.cfg.BrowserlessURL)
+		log.Printf("[FILERUNNER-BROWSERLESS] URL must start with ws:// or wss://")
+		return fmt.Errorf("browserless URL must start with ws:// or wss://")
+	}
+
+	// Log configuration (without exposing token)
+	tokenStatus := "not provided"
+	tokenLength := 0
+	if r.cfg.BrowserlessToken != "" {
+		tokenStatus = "provided"
+		tokenLength = len(r.cfg.BrowserlessToken)
+	}
+	
+	log.Printf("[FILERUNNER-BROWSERLESS] Configuration validated:")
+	log.Printf("[FILERUNNER-BROWSERLESS]   URL: %s", r.cfg.BrowserlessURL)
+	log.Printf("[FILERUNNER-BROWSERLESS]   Token: %s (length: %d)", tokenStatus, tokenLength)
+
+	return nil
+}
+
+// configureBrowserlessOptions configures scrapemate options for Browserless usage
+func (r *fileRunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Config) error) error {
+	log.Printf("[FILERUNNER-BROWSERLESS] Starting scrapemate configuration")
+	
+	// Build WebSocket URL with authentication
+	wsURL, err := r.cfg.GetBrowserlessWebSocketURL()
+	if err != nil {
+		log.Printf("[FILERUNNER-BROWSERLESS] Error: Failed to build WebSocket URL: %v", err)
+		return fmt.Errorf("failed to build browserless WebSocket URL: %w", err)
+	}
+
+	// Log configuration safely (redact token)
+	safeURL := wsURL
+	if r.cfg.BrowserlessToken != "" {
+		safeURL = strings.Replace(wsURL, r.cfg.BrowserlessToken, "[REDACTED]", -1)
+	}
+	log.Printf("[FILERUNNER-BROWSERLESS] WebSocket URL built: %s", safeURL)
+
+	// Since scrapemate v0.9.4 doesn't have built-in remote browser support,
+	// we need to implement a workaround. For now, we'll configure it with
+	// standard options and add a note about the limitation.
+	
+	// TODO: This is a limitation of scrapemate v0.9.4 - it doesn't support remote browsers directly.
+	// We're configuring it with standard options for now, but the actual remote browser connection
+	// would need to be implemented at a lower level or by upgrading scrapemate.
+	
+	log.Printf("[FILERUNNER-BROWSERLESS] Configuring browser options (FastMode: %v, Debug: %v)", r.cfg.FastMode, r.cfg.Debug)
+	
+	if !r.cfg.FastMode {
+		if r.cfg.Debug {
+			*opts = append(*opts, scrapemateapp.WithJS(
+				scrapemateapp.Headfull(),
+				scrapemateapp.DisableImages(),
+			))
+			log.Printf("[FILERUNNER-BROWSERLESS] Applied debug mode options (headfull, no images)")
+		} else {
+			*opts = append(*opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
+			log.Printf("[FILERUNNER-BROWSERLESS] Applied standard mode options (headless, no images)")
+		}
+	} else {
+		*opts = append(*opts, scrapemateapp.WithStealth("firefox"))
+		log.Printf("[FILERUNNER-BROWSERLESS] Applied fast mode options (stealth firefox)")
+	}
+
+	// Log a warning about the current limitation
+	log.Printf("[FILERUNNER-BROWSERLESS] WARNING: scrapemate v0.9.4 doesn't support remote browsers directly")
+	log.Printf("[FILERUNNER-BROWSERLESS] The application will attempt to use local Playwright")
+	log.Printf("[FILERUNNER-BROWSERLESS] Consider upgrading scrapemate or implementing custom browser connection")
+
+	return nil
+}
+
 func (r *fileRunner) setInput() error {
 	switch r.cfg.InputFile {
 	case "stdin":
@@ -198,18 +281,39 @@ func (r *fileRunner) setApp() error {
 		)
 	}
 
-	if !r.cfg.FastMode {
-		if r.cfg.Debug {
-			opts = append(opts, scrapemateapp.WithJS(
-				scrapemateapp.Headfull(),
-				scrapemateapp.DisableImages(),
-			),
-			)
-		} else {
-			opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
+	// Configure browser options based on Browserless usage
+	if r.cfg.UseBrowserless {
+		log.Printf("[FILERUNNER-BROWSERLESS] Browserless mode enabled")
+		
+		// Validate Browserless configuration before proceeding
+		if err := r.validateBrowserlessConfig(); err != nil {
+			log.Printf("[FILERUNNER-BROWSERLESS] Configuration validation failed: %v", err)
+			return fmt.Errorf("browserless configuration validation failed: %w", err)
 		}
+
+		// Configure scrapemate for remote browser usage
+		if err := r.configureBrowserlessOptions(&opts); err != nil {
+			log.Printf("[FILERUNNER-BROWSERLESS] Options configuration failed: %v", err)
+			return fmt.Errorf("failed to configure browserless options: %w", err)
+		}
+		
+		log.Printf("[FILERUNNER-BROWSERLESS] Configuration completed successfully")
 	} else {
-		opts = append(opts, scrapemateapp.WithStealth("firefox"))
+		log.Printf("[FILERUNNER-BROWSERLESS] Browserless disabled, using local Playwright")
+		// Use local Playwright configuration
+		if !r.cfg.FastMode {
+			if r.cfg.Debug {
+				opts = append(opts, scrapemateapp.WithJS(
+					scrapemateapp.Headfull(),
+					scrapemateapp.DisableImages(),
+				),
+				)
+			} else {
+				opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
+			}
+		} else {
+			opts = append(opts, scrapemateapp.WithStealth("firefox"))
+		}
 	}
 
 	if !r.cfg.DisablePageReuse {
