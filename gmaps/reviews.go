@@ -538,7 +538,7 @@ func findReviewsIframe(ctx context.Context, page playwright.Page) (playwright.Fr
 			"iframe.xmEWXe",
 			"iframe[src*=\"maps\"]",
 			"iframe[title=\"Google Maps\"]",
-			"iframe[aria-label*=\"Map\"]"
+			"iframe[aria-label*=\"Map\"]",
 		}
 		
 		for _, selector := range alternativeSelectors {
