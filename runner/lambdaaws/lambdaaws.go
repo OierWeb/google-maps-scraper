@@ -75,7 +75,7 @@ func (l *lambdaAwsRunner) handler(ctx context.Context, input lInput) error {
 	in := strings.NewReader(strings.Join(input.Keywords, "\n"))
 
 	var seedJobs []scrapemate.IJob
-	
+
 	exitMonitor := exiter.New()
 
 	seedJobs, err = runner.CreateSeedJobs(
@@ -89,8 +89,6 @@ func (l *lambdaAwsRunner) handler(ctx context.Context, input lInput) error {
 		10000, // TODO support radius
 		nil,
 		exitMonitor,
-		input.ExtraReviews,
-		input.ReviewsLimit,
 	)
 	if err != nil {
 		return err

@@ -11,7 +11,7 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X POST "http://localhost:3000/api/v1/jobs" \
+            curl -X POST "http://localhost:8080/api/v1/jobs" \
               -H "Content-Type: application/json" \
               -d '{
                 "name": "Coffee shops Ilion",
@@ -52,7 +52,7 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X GET "http://localhost:3000/api/v1/jobs"
+            curl -X GET "http://localhost:8080/api/v1/jobs"
       responses:
         '200':
           description: Successful response
@@ -75,7 +75,7 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X GET "http://localhost:3000/api/v1/jobs/6f0c1af8-3c4e-4742-84bb-590938ae8930"
+            curl -X GET "http://localhost:8080/api/v1/jobs/6f0c1af8-3c4e-4742-84bb-590938ae8930"
       parameters:
         - name: id
           in: path
@@ -107,7 +107,7 @@ paths:
       x-code-samples:
         - lang: curl
           source: |
-            curl -X DELETE "http://localhost:3000/api/v1/jobs/455a6a00-cefb-4a9d-9e7d-791f01873700"
+            curl -X DELETE "http://localhost:8080/api/v1/jobs/455a6a00-cefb-4a9d-9e7d-791f01873700"
       parameters:
         - name: id
           in: path
@@ -135,7 +135,7 @@ paths:
       summary: Download job results as CSV
       x-code-samples:
           source: |
-            curl -X GET "http://localhost:3000/api/v1/jobs/18eafda3-53a9-4970-ac96-8f8dfc7011c3/download" --output results.csv
+            curl -X GET "http://localhost:8080/api/v1/jobs/18eafda3-53a9-4970-ac96-8f8dfc7011c3/download" --output results.csv
       parameters:
         - name: id
           in: path

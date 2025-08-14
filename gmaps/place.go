@@ -3,10 +3,8 @@ package gmaps
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gosom/google-maps-scraper/exiter"
@@ -19,14 +17,12 @@ type PlaceJobOptions func(*PlaceJob)
 type PlaceJob struct {
 	scrapemate.Job
 
-	UsageInResultststs  bool
-	ExtractEmail        bool
-	ExitMonitor         exiter.Exiter
-	ExtractExtraReviews bool
-	ReviewsLimit        int
+	UsageInResultststs bool
+	ExtractEmail       bool
+	ExitMonitor        exiter.Exiter
 }
 
-func NewPlaceJob(parentID, langCode, u string, extractEmail, extraExtraReviews bool, reviewsLimit int, opts ...PlaceJobOptions) *PlaceJob {
+func NewPlaceJob(parentID, langCode, u string, extractEmail bool, opts ...PlaceJobOptions) *PlaceJob {
 	const (
 		defaultPrio       = scrapemate.PriorityMedium
 		defaultMaxRetries = 3
@@ -42,12 +38,10 @@ func NewPlaceJob(parentID, langCode, u string, extractEmail, extraExtraReviews b
 			MaxRetries: defaultMaxRetries,
 			Priority:   defaultPrio,
 		},
-		ReviewsLimit: reviewsLimit,
 	}
 
 	job.UsageInResultststs = true
 	job.ExtractEmail = extractEmail
-	job.ExtractExtraReviews = extraExtraReviews
 
 	for _, opt := range opts {
 		opt(&job)
@@ -82,83 +76,28 @@ func (j *PlaceJob) Process(_ context.Context, resp *scrapemate.Response) (any, [
 	entry.ID = j.ParentID
 
 	if entry.Link == "" {
-		entry.Link = j.GetFullURL()
+		entry.Link = j.GetURL()
 	}
 
-	if j.ExtractExtraReviews {
-		reviewCount := j.getReviewCount(raw)
-		if reviewCount > 8 { // we have more reviews
-			if j.ReviewsLimit != 0 {
-				// Safely attempt to convert the document to a Playwright page
-				page, ok := resp.Document.(playwright.Page)
-				if !ok {
-					log.Printf("Warning: Document is not a playwright.Page, skipping review extraction")
-					return entry, nil, nil
-				}
-				
-				// Introduce a delay to ensure page is fully loaded
-				time.Sleep(3 * time.Second)
-				
-				// Create a context with reasonable timeout
-				reviewsCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-				defer cancel()
-				
-				// Try to get reviews with error recovery
-				fetchedCount, reviews, err := scrollReviews(reviewsCtx, page, j.ReviewsLimit)
-				if err != nil {
-					log.Printf("Warning: error scrolling reviews: %v", err)
-				} else {
-					log.Printf("Successfully fetched %d reviews", fetchedCount)
-					
-					if len(reviews) > 0 {
-						for _, review := range reviews {
-							entry.AddReview(review.AuthorName, review.AuthorURL, review.Rating, review.RelativeTimeDescription, review.Text)
-						}
-						log.Printf("Added %d reviews to entry", len(reviews))
-					}
-				}
-			} else {
-				// For this path, also safely handle the page conversion
-				page, ok := resp.Document.(playwright.Page)
-				if !ok {
-					log.Printf("Warning: Document is not a playwright.Page, skipping review extraction")
-					return entry, nil, nil
-				}
-				
-				params := fetchReviewsParams{
-					page:        page,
-					mapURL:      j.GetFullURL(),
-					reviewCount: reviewCount,
-				}
-				
-				reviewFetcher := newReviewFetcher(params)
-				
-				reviewData, err := reviewFetcher.fetch(context.Background())
-				if err != nil {
-					log.Printf("Warning: failed to fetch reviews: %s", err)
-				} else {
-					resp.Meta["reviews_raw"] = reviewData
-				}
-			}
+	if j.ExtractEmail && entry.IsWebsiteValidForEmail() {
+		opts := []EmailExtractJobOptions{}
+		if j.ExitMonitor != nil {
+			opts = append(opts, WithEmailJobExitMonitor(j.ExitMonitor))
 		}
+
+		emailJob := NewEmailJob(j.ID, &entry, opts...)
+
+		j.UsageInResultststs = false
+
+		return nil, []scrapemate.IJob{emailJob}, nil
+	} else if j.ExitMonitor != nil {
+		j.ExitMonitor.IncrPlacesCompleted(1)
 	}
 
-	if j.ExtractEmail {
-		info := extractBusinessInfo(raw)
-		if info.Website != "" {
-			entry.WebSite = info.Website
-		}
-
-		if entry.IsWebsiteValidForEmail() {
-			j := NewEmailJob(j.ParentID, entry)
-			return entry, []scrapemate.IJob{j}, nil
-		}
-	}
-
-	return entry, nil, nil
+	return &entry, nil, err
 }
 
-func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scrapemate.Response {
+func (j *PlaceJob) BrowserActions(_ context.Context, page playwright.Page) scrapemate.Response {
 	var resp scrapemate.Response
 
 	pageResponse, err := page.Goto(j.GetURL(), playwright.PageGotoOptions{
@@ -197,58 +136,35 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 		resp.Headers.Add(k, v)
 	}
 
-	raw, err := j.extractJSON(page)
+	rawI, err := page.Evaluate(js)
 	if err != nil {
 		resp.Error = err
 
 		return resp
 	}
 
-	if resp.Meta == nil {
-		resp.Meta = make(map[string]any)
-	}
-
-	resp.Meta["json"] = raw
-
-	return resp
-}
-
-func (j *PlaceJob) extractJSON(page playwright.Page) ([]byte, error) {
-	rawI, err := page.Evaluate(js)
-	if err != nil {
-		return nil, err
-	}
-
 	raw, ok := rawI.(string)
 	if !ok {
-		return nil, fmt.Errorf("could not convert to string")
+		resp.Error = fmt.Errorf("could not convert to string")
+
+		return resp
 	}
 
 	const prefix = `)]}'`
 
 	raw = strings.TrimSpace(strings.TrimPrefix(raw, prefix))
 
-	return []byte(raw), nil
-}
-
-func (j *PlaceJob) getReviewCount(data []byte) int {
-	tmpEntry, err := EntryFromJSON(data, true)
-	if err != nil {
-		return 0
+	if resp.Meta == nil {
+		resp.Meta = make(map[string]any)
 	}
 
-	return tmpEntry.ReviewCount
+	resp.Meta["json"] = []byte(raw)
+
+	return resp
 }
 
 func (j *PlaceJob) UseInResults() bool {
 	return j.UsageInResultststs
-}
-
-func ctxWait(ctx context.Context, dur time.Duration) {
-	select {
-	case <-ctx.Done():
-	case <-time.After(dur):
-	}
 }
 
 const js = `

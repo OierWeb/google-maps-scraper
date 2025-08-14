@@ -86,8 +86,6 @@ func (r *fileRunner) Run(ctx context.Context) (err error) {
 		r.cfg.Radius,
 		dedup,
 		exitMonitor,
-		r.cfg.ExtraReviews,
-		r.cfg.ReviewsLimit,
 	)
 	if err != nil {
 		return err

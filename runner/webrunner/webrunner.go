@@ -194,8 +194,6 @@ func (w *webrunner) scrapeJob(ctx context.Context, job *web.Job) error {
 		}(),
 		dedup,
 		exitMonitor,
-		w.cfg.ExtraReviews,
-		w.cfg.ReviewsLimit,
 	)
 	if err != nil {
 		err2 := w.svc.Update(ctx, job)
