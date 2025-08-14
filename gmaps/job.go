@@ -310,12 +310,12 @@ func scroll(ctx context.Context,
 
 	var currentScrollHeight int
 	// Scroll to the bottom of the page.
-	waitTime := 5000.
+	waitTime := 30000.
 	cnt := 0
 
 	const (
-		timeout  = 10000
-		maxWait2 = 40000
+		timeout  = 30000
+		maxWait2 = 240000
 	)
 
 	for i := 0; i < maxDepth; i++ {
