@@ -39,11 +39,9 @@ func GetBrowserlessJSOptions() []func(*scrapemateapp.Config) error {
 
 	fmt.Printf("🚀 Using Browserless remote browser at: %s\n", wsEndpoint)
 
-	// Return basic options for Browserless - the connection will be handled by environment variables
+	// Return basic options for Browserless
 	return []func(*scrapemateapp.Config) error{
-		scrapemateapp.WithJS(
-			scrapemateapp.DisableImages(),
-		),
+		scrapemateapp.WithJS(scrapemateapp.DisableImages()),
 	}
 }
 
