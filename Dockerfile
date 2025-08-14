@@ -16,6 +16,9 @@ FROM debian:bullseye-slim
 # Set environment variables for Browserless mode
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PLAYWRIGHT_BROWSERS_PATH=0
+ENV PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
+ENV PLAYWRIGHT_DRIVER_PATH=/tmp/playwright
+ENV HOME=/home/scraper
 
 # Install only essential runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,8 +31,9 @@ COPY --from=builder /usr/bin/google-maps-scraper /usr/bin/
 
 # Create non-root user and necessary directories
 RUN useradd -r -s /bin/false scraper \
-    && mkdir -p /app/webdata /app/cache /app/results \
-    && chown -R scraper:scraper /app
+    && mkdir -p /app/webdata /app/cache /app/results /home/scraper /tmp/playwright \
+    && chown -R scraper:scraper /app /home/scraper /tmp/playwright \
+    && chmod 755 /home/scraper
 
 # Set working directory
 WORKDIR /app
