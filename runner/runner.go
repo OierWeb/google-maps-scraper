@@ -149,6 +149,21 @@ func ParseConfig() *Config {
 		cfg.AwsRegion = os.Getenv("MY_AWS_REGION")
 	}
 
+	// Parse Browserless environment variables
+	if cfg.BrowserlessURL == "" {
+		cfg.BrowserlessURL = os.Getenv("BROWSERLESS_URL")
+	}
+
+	if cfg.BrowserlessToken == "" {
+		cfg.BrowserlessToken = os.Getenv("BROWSERLESS_TOKEN")
+	}
+
+	if !cfg.UseBrowserless {
+		if os.Getenv("USE_BROWSERLESS") == "true" {
+			cfg.UseBrowserless = true
+		}
+	}
+
 	// Parse Browserless configuration from environment variables
 	if cfg.BrowserlessURL == "" {
 		cfg.BrowserlessURL = os.Getenv("BROWSERLESS_URL")
@@ -230,8 +245,7 @@ func ParseConfig() *Config {
 	return &cfg
 }
 
-// ValidateBrowserlessConfigurationWithFallback performs comprehensive validation of Browserless configuration
-// and implements fallback logic to local Playwright if Browserless is unavailable
+// ValidateBrowserlessConfigurationWithFallback performs basic validation of Browserless configuration
 func (c *Config) ValidateBrowserlessConfigurationWithFallback() error {
 	if !c.UseBrowserless {
 		return nil // No validation needed if not using Browserless
@@ -239,29 +253,22 @@ func (c *Config) ValidateBrowserlessConfigurationWithFallback() error {
 
 	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Starting configuration validation...\n")
 
-	// Step 1: Validate URL format
-	if err := c.validateBrowserlessURLFormat(); err != nil {
-		return fmt.Errorf("URL format validation failed: %w", err)
+	// Basic URL validation
+	if c.BrowserlessURL == "" {
+		return fmt.Errorf("browserless URL is required when UseBrowserless is true")
 	}
 
-	// Step 2: Validate URL reachability with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	if err := c.validateBrowserlessReachability(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "[BROWSERLESS] Connection validation failed: %v\n", err)
-		
-		// Step 3: Attempt fallback to local Playwright if enabled
-		if c.attemptFallbackToLocal() {
-			fmt.Fprintf(os.Stderr, "[BROWSERLESS] Successfully fell back to local Playwright\n")
-			return nil
-		}
-		
-		// If fallback is not possible or disabled, return the original error
-		return fmt.Errorf("browserless connection failed and fallback unavailable: %w", err)
+	// Validate URL format
+	if !strings.HasPrefix(c.BrowserlessURL, "ws://") && !strings.HasPrefix(c.BrowserlessURL, "wss://") {
+		return fmt.Errorf("browserless URL must start with ws:// or wss://")
 	}
 
+	fmt.Fprintf(os.Stderr, "[BROWSERLESS] URL format validation passed: %s\n", c.BrowserlessURL)
 	fmt.Fprintf(os.Stderr, "[BROWSERLESS] Configuration validation completed successfully\n")
+	
+	// Note: We skip connection testing to avoid startup delays
+	// The actual connection will be tested when scraping starts
+	
 	return nil
 }
 

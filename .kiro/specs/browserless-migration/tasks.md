@@ -12,6 +12,9 @@
 
 - [x] 2. Add Browserless configuration to runner Config struct
 
+
+
+
   - Add BrowserlessURL, BrowserlessToken, and UseBrowserless fields to Config struct in runner/runner.go
   - Implement environment variable parsing for BROWSERLESS_URL, BROWSERLESS_TOKEN, USE_BROWSERLESS
   - Add validation logic for Browserless configuration parameters
