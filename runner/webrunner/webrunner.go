@@ -194,6 +194,8 @@ func (w *webrunner) scrapeJob(ctx context.Context, job *web.Job) error {
 		}(),
 		dedup,
 		exitMonitor,
+		w.cfg.ExtraReviews,
+		w.cfg.ReviewsLimit,
 	)
 	if err != nil {
 		err2 := w.svc.Update(ctx, job)
@@ -254,26 +256,14 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 		scrapemateapp.WithExitOnInactivity(time.Minute * 3),
 	}
 
-	// Configure Browserless environment if needed
-	runner.ConfigureBrowserlessEnvironment(w.cfg.BrowserWSEndpoint)
-
-	// Configure JavaScript options
-	if runner.ShouldUseBrowserless(w.cfg) {
-		// Use Browserless with basic options
-		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
-			opts = append(opts, browserlessOpts...)
-		}
+	if !job.Data.FastMode {
+		opts = append(opts,
+			scrapemateapp.WithJS(scrapemateapp.DisableImages()),
+		)
 	} else {
-		// Use local browser configuration
-		if !job.Data.FastMode {
-			opts = append(opts,
-				scrapemateapp.WithJS(scrapemateapp.DisableImages()),
-			)
-		} else {
-			opts = append(opts,
-				scrapemateapp.WithStealth("firefox"),
-			)
-		}
+		opts = append(opts,
+			scrapemateapp.WithStealth("firefox"),
+		)
 	}
 
 	hasProxy := false

@@ -86,6 +86,8 @@ func (r *fileRunner) Run(ctx context.Context) (err error) {
 		r.cfg.Radius,
 		dedup,
 		exitMonitor,
+		r.cfg.ExtraReviews,
+		r.cfg.ReviewsLimit,
 	)
 	if err != nil {
 		return err
@@ -190,36 +192,24 @@ func (r *fileRunner) setApp() error {
 		scrapemateapp.WithExitOnInactivity(r.cfg.ExitOnInactivityDuration),
 	}
 
-	// Configure Browserless environment if needed
-	runner.ConfigureBrowserlessEnvironment(r.cfg.BrowserWSEndpoint)
-
 	if len(r.cfg.Proxies) > 0 {
 		opts = append(opts,
 			scrapemateapp.WithProxies(r.cfg.Proxies),
 		)
 	}
 
-	// Configure JavaScript options
-	if runner.ShouldUseBrowserless(r.cfg) {
-		// Use Browserless with basic options
-		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
-			opts = append(opts, browserlessOpts...)
+	if !r.cfg.FastMode {
+		if r.cfg.Debug {
+			opts = append(opts, scrapemateapp.WithJS(
+				scrapemateapp.Headfull(),
+				scrapemateapp.DisableImages(),
+			),
+			)
+		} else {
+			opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
 		}
 	} else {
-		// Use local browser configuration
-		if !r.cfg.FastMode {
-			if r.cfg.Debug {
-				opts = append(opts, scrapemateapp.WithJS(
-					scrapemateapp.Headfull(),
-					scrapemateapp.DisableImages(),
-				),
-				)
-			} else {
-				opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
-			}
-		} else {
-			opts = append(opts, scrapemateapp.WithStealth("firefox"))
-		}
+		opts = append(opts, scrapemateapp.WithStealth("firefox"))
 	}
 
 	if !r.cfg.DisablePageReuse {

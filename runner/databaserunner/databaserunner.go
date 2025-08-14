@@ -59,35 +59,23 @@ func New(cfg *runner.Config) (runner.Runner, error) {
 		scrapemateapp.WithExitOnInactivity(cfg.ExitOnInactivityDuration),
 	}
 
-	// Configure Browserless environment if needed
-	runner.ConfigureBrowserlessEnvironment(cfg.BrowserWSEndpoint)
-
 	if len(cfg.Proxies) > 0 {
 		opts = append(opts,
 			scrapemateapp.WithProxies(cfg.Proxies),
 		)
 	}
 
-	// Configure JavaScript options
-	if runner.ShouldUseBrowserless(cfg) {
-		// Use Browserless with basic options
-		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
-			opts = append(opts, browserlessOpts...)
+	if !cfg.FastMode {
+		if cfg.Debug {
+			opts = append(opts, scrapemateapp.WithJS(
+				scrapemateapp.Headfull(),
+				scrapemateapp.DisableImages(),
+			))
+		} else {
+			opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
 		}
 	} else {
-		// Use local browser configuration
-		if !cfg.FastMode {
-			if cfg.Debug {
-				opts = append(opts, scrapemateapp.WithJS(
-					scrapemateapp.Headfull(),
-					scrapemateapp.DisableImages(),
-				))
-			} else {
-				opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
-			}
-		} else {
-			opts = append(opts, scrapemateapp.WithStealth("firefox"))
-		}
+		opts = append(opts, scrapemateapp.WithStealth("firefox"))
 	}
 
 	if !cfg.DisablePageReuse {
@@ -163,6 +151,8 @@ func (d *dbrunner) produceSeedJobs(ctx context.Context) error {
 		d.cfg.Radius,
 		nil,
 		nil,
+		d.cfg.ExtraReviews,
+		d.cfg.ReviewsLimit,
 	)
 	if err != nil {
 		return err
