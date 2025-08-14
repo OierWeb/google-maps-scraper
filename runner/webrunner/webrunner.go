@@ -15,6 +15,7 @@ import (
 	"github.com/gosom/google-maps-scraper/deduper"
 	"github.com/gosom/google-maps-scraper/exiter"
 	"github.com/gosom/google-maps-scraper/runner"
+	"github.com/gosom/google-maps-scraper/runner/browserless"
 	"github.com/gosom/google-maps-scraper/tlmt"
 	"github.com/gosom/google-maps-scraper/web"
 	"github.com/gosom/google-maps-scraper/web/sqlite"
@@ -372,16 +373,28 @@ func (w *webrunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Conf
 	}
 	log.Printf("[WEBRUNNER-BROWSERLESS] WebSocket URL built: %s", safeURL)
 
-	// Since scrapemate v0.9.4 doesn't have built-in remote browser support,
-	// we need to implement a workaround. For now, we'll configure it with
-	// standard options and add a note about the limitation.
-	
-	// TODO: This is a limitation of scrapemate v0.9.4 - it doesn't support remote browsers directly.
-	// We're configuring it with standard options for now, but the actual remote browser connection
-	// would need to be implemented at a lower level or by upgrading scrapemate.
-	
-	log.Printf("[WEBRUNNER-BROWSERLESS] Configuring browser options for job %s (FastMode: %v)", job.ID, job.Data.FastMode)
-	
+	// Create a custom browser launcher for Browserless
+	browserType := "chromium"
+	if job.Data.FastMode {
+		browserType = "firefox"
+	}
+
+	// Create our custom Browserless launcher
+	browserlessLauncher := browserless.NewBrowserlessLauncher(
+		wsURL,
+		browserType,
+		!job.Data.FastMode, // headless mode when not in fast mode
+		0,                 // no slowMo
+	)
+
+	// Add our custom browser launcher to the options
+	*opts = append(*opts, func(cfg *scrapemateapp.Config) error {
+		// Override the default browser launcher with our custom one
+		cfg.BrowserLauncher = browserlessLauncher
+		return nil
+	})
+
+	// Add additional options based on job mode
 	if !job.Data.FastMode {
 		*opts = append(*opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
 		log.Printf("[WEBRUNNER-BROWSERLESS] Applied standard mode options (headless, no images)")
@@ -390,10 +403,6 @@ func (w *webrunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Conf
 		log.Printf("[WEBRUNNER-BROWSERLESS] Applied fast mode options (stealth firefox)")
 	}
 
-	// Log a warning about the current limitation
-	log.Printf("[WEBRUNNER-BROWSERLESS] WARNING: scrapemate v0.9.4 doesn't support remote browsers directly")
-	log.Printf("[WEBRUNNER-BROWSERLESS] The application will attempt to use local Playwright")
-	log.Printf("[WEBRUNNER-BROWSERLESS] Consider upgrading scrapemate or implementing custom browser connection")
-
+	log.Printf("[WEBRUNNER-BROWSERLESS] Successfully configured custom Browserless launcher")
 	return nil
 }

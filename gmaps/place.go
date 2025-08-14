@@ -2,6 +2,7 @@ package gmaps
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -197,7 +198,7 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 		resp.Headers.Add(k, v)
 	}
 
-	raw, err := j.extractJSON(page)
+	raw, err := j.ExtractJSON(page)
 	if err != nil {
 		resp.Error = err
 
@@ -213,22 +214,82 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 	return resp
 }
 
-func (j *PlaceJob) extractJSON(page playwright.Page) ([]byte, error) {
-	rawI, err := page.Evaluate(js)
-	if err != nil {
-		return nil, err
+func (j *PlaceJob) ExtractJSON(page playwright.Page) ([]byte, error) {
+	// Maximum number of retries
+	const maxRetries = 3
+	const retryDelay = 1 * time.Second
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			log.Printf("[PLACE] Retry %d/%d extracting JSON data", attempt, maxRetries)
+			time.Sleep(retryDelay)
+		}
+
+		// Execute the JavaScript to extract data
+		rawI, err := page.Evaluate(js)
+		if err != nil {
+			lastErr = err
+			log.Printf("[PLACE] JavaScript evaluation error (attempt %d/%d): %v", attempt+1, maxRetries, err)
+			continue
+		}
+
+		// Handle different return types
+		var raw string
+		var ok bool
+
+		// Try to convert the result to string directly
+		if raw, ok = rawI.(string); ok {
+			// Success - got a string
+		} else {
+			// Try to handle other types that could be converted to string
+			switch v := rawI.(type) {
+			case nil:
+				lastErr = fmt.Errorf("JavaScript returned nil value")
+				log.Printf("[PLACE] JavaScript returned nil value (attempt %d/%d)", attempt+1, maxRetries)
+				continue
+			case []byte:
+				raw = string(v)
+			case []interface{}:
+				// Try to convert JSON array to string
+				jsonBytes, err := json.Marshal(v)
+				if err != nil {
+					lastErr = fmt.Errorf("failed to marshal array result: %w", err)
+					log.Printf("[PLACE] Failed to marshal array result (attempt %d/%d): %v", attempt+1, maxRetries, err)
+					continue
+				}
+				raw = string(jsonBytes)
+			case map[string]interface{}:
+				// Try to convert JSON object to string
+				jsonBytes, err := json.Marshal(v)
+				if err != nil {
+					lastErr = fmt.Errorf("failed to marshal object result: %w", err)
+					log.Printf("[PLACE] Failed to marshal object result (attempt %d/%d): %v", attempt+1, maxRetries, err)
+					continue
+				}
+				raw = string(jsonBytes)
+			default:
+				// For any other type, try using fmt.Sprintf
+				raw = fmt.Sprintf("%v", v)
+				log.Printf("[PLACE] Converted %T to string using fmt.Sprintf (attempt %d/%d)", v, attempt+1, maxRetries)
+			}
+		}
+
+		// Process the raw string
+		const prefix = `)]}'`
+		raw = strings.TrimSpace(strings.TrimPrefix(raw, prefix))
+
+		// Validate that we have valid JSON data
+		if !json.Valid([]byte(raw)) {
+			lastErr = fmt.Errorf("extracted data is not valid JSON")
+			log.Printf("[PLACE] Extracted data is not valid JSON (attempt %d/%d)", attempt+1, maxRetries)
+			continue
+		}
+
+		return []byte(raw), nil
 	}
 
-	raw, ok := rawI.(string)
-	if !ok {
-		return nil, fmt.Errorf("could not convert to string")
-	}
-
-	const prefix = `)]}'`
-
-	raw = strings.TrimSpace(strings.TrimPrefix(raw, prefix))
-
-	return []byte(raw), nil
+	return nil, fmt.Errorf("failed to extract JSON after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (j *PlaceJob) getReviewCount(data []byte) int {
@@ -253,9 +314,30 @@ func ctxWait(ctx context.Context, dur time.Duration) {
 
 const js = `
 function parse() {
-  const inputString = window.APP_INITIALIZATION_STATE[3][6]
-  return inputString
+  try {
+    // Check if APP_INITIALIZATION_STATE exists and has the expected structure
+    if (!window.APP_INITIALIZATION_STATE) {
+      console.error('APP_INITIALIZATION_STATE not found');
+      return null;
+    }
+    
+    if (!Array.isArray(window.APP_INITIALIZATION_STATE) || 
+        window.APP_INITIALIZATION_STATE.length <= 3 ||
+        !Array.isArray(window.APP_INITIALIZATION_STATE[3]) ||
+        window.APP_INITIALIZATION_STATE[3].length <= 6) {
+      console.error('APP_INITIALIZATION_STATE has unexpected structure');
+      return JSON.stringify({error: 'Unexpected data structure'});
+    }
+    
+    const inputString = window.APP_INITIALIZATION_STATE[3][6];
+    return inputString;
+  } catch (e) {
+    console.error('Error extracting data:', e);
+    return JSON.stringify({error: e.message});
+  }
 }
+
+return parse();
 `
 // BusinessInfo holds extracted business information
 type BusinessInfo struct {
