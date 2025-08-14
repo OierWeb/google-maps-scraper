@@ -146,8 +146,8 @@ func (l *lambdaAwsRunner) getApp(_ context.Context, input lInput, out io.Writer)
 	// Configure JavaScript options
 	if runner.ShouldUseBrowserless(l.cfg) {
 		// Use Browserless with basic options
-		if jsOpts := runner.GetBrowserlessJSOptions(); jsOpts != nil {
-			opts = append(opts, scrapemateapp.WithJS(jsOpts...))
+		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
+			opts = append(opts, browserlessOpts...)
 		}
 	} else {
 		// Use local browser configuration

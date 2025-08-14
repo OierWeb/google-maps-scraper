@@ -31,7 +31,7 @@ func ConfigureBrowserlessEnvironment(browserWSEndpoint string) {
 }
 
 // GetBrowserlessJSOptions returns JS options optimized for Browserless
-func GetBrowserlessJSOptions() []func(*scrapemateapp.JSConfig) {
+func GetBrowserlessJSOptions() []func(*scrapemateapp.Config) error {
 	if !isBrowserlessEnabled() {
 		return nil
 	}
@@ -39,13 +39,8 @@ func GetBrowserlessJSOptions() []func(*scrapemateapp.JSConfig) {
 	fmt.Println("🚀 Using Browserless remote browser configuration")
 
 	// Return optimized options for Browserless
-	return []func(*scrapemateapp.JSConfig){
-		scrapemateapp.DisableImages(),
-		// Custom configuration for Browserless
-		func(cfg *scrapemateapp.JSConfig) {
-			// Additional Browserless-specific configuration can be added here
-			// For now, we rely on the environment variables set above
-		},
+	return []func(*scrapemateapp.Config) error{
+		scrapemateapp.WithJS(scrapemateapp.DisableImages()),
 	}
 }
 

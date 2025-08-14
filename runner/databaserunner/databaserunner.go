@@ -71,8 +71,8 @@ func New(cfg *runner.Config) (runner.Runner, error) {
 	// Configure JavaScript options
 	if runner.ShouldUseBrowserless(cfg) {
 		// Use Browserless with basic options
-		if jsOpts := runner.GetBrowserlessJSOptions(); jsOpts != nil {
-			opts = append(opts, scrapemateapp.WithJS(jsOpts...))
+		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
+			opts = append(opts, browserlessOpts...)
 		}
 	} else {
 		// Use local browser configuration

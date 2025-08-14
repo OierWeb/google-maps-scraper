@@ -260,8 +260,8 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 	// Configure JavaScript options
 	if runner.ShouldUseBrowserless(w.cfg) {
 		// Use Browserless with basic options
-		if jsOpts := runner.GetBrowserlessJSOptions(); jsOpts != nil {
-			opts = append(opts, scrapemateapp.WithJS(jsOpts...))
+		if browserlessOpts := runner.GetBrowserlessJSOptions(); browserlessOpts != nil {
+			opts = append(opts, browserlessOpts...)
 		}
 	} else {
 		// Use local browser configuration
