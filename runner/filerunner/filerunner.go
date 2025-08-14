@@ -190,24 +190,36 @@ func (r *fileRunner) setApp() error {
 		scrapemateapp.WithExitOnInactivity(r.cfg.ExitOnInactivityDuration),
 	}
 
+	// Configure Browserless environment if needed
+	runner.ConfigureBrowserlessEnvironment(r.cfg.BrowserWSEndpoint)
+
 	if len(r.cfg.Proxies) > 0 {
 		opts = append(opts,
 			scrapemateapp.WithProxies(r.cfg.Proxies),
 		)
 	}
 
-	if !r.cfg.FastMode {
-		if r.cfg.Debug {
-			opts = append(opts, scrapemateapp.WithJS(
-				scrapemateapp.Headfull(),
-				scrapemateapp.DisableImages(),
-			),
-			)
-		} else {
-			opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
+	// Configure JavaScript options
+	if runner.ShouldUseBrowserless(r.cfg) {
+		// Use Browserless with basic options
+		if jsOpts := runner.GetBrowserlessJSOptions(); jsOpts != nil {
+			opts = append(opts, scrapemateapp.WithJS(jsOpts...))
 		}
 	} else {
-		opts = append(opts, scrapemateapp.WithStealth("firefox"))
+		// Use local browser configuration
+		if !r.cfg.FastMode {
+			if r.cfg.Debug {
+				opts = append(opts, scrapemateapp.WithJS(
+					scrapemateapp.Headfull(),
+					scrapemateapp.DisableImages(),
+				),
+				)
+			} else {
+				opts = append(opts, scrapemateapp.WithJS(scrapemateapp.DisableImages()))
+			}
+		} else {
+			opts = append(opts, scrapemateapp.WithStealth("firefox"))
+		}
 	}
 
 	if !r.cfg.DisablePageReuse {

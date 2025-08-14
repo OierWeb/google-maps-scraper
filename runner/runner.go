@@ -78,6 +78,7 @@ type Config struct {
 	Radius                   float64
 	Addr                     string
 	DisablePageReuse         bool
+	BrowserWSEndpoint        string
 }
 
 func ParseConfig() *Config {
@@ -172,6 +173,11 @@ func ParseConfig() *Config {
 
 	if cfg.AwsAccessKey != "" && cfg.AwsSecretKey != "" && cfg.AwsRegion != "" {
 		cfg.S3Uploader = s3uploader.New(cfg.AwsAccessKey, cfg.AwsSecretKey, cfg.AwsRegion)
+	}
+
+	// Read Browserless WebSocket endpoint from environment variable
+	if cfg.BrowserWSEndpoint == "" {
+		cfg.BrowserWSEndpoint = os.Getenv("BROWSER_WS_ENDPOINT")
 	}
 
 	switch {

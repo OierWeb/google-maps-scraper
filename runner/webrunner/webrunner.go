@@ -254,14 +254,26 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 		scrapemateapp.WithExitOnInactivity(time.Minute * 3),
 	}
 
-	if !job.Data.FastMode {
-		opts = append(opts,
-			scrapemateapp.WithJS(scrapemateapp.DisableImages()),
-		)
+	// Configure Browserless environment if needed
+	runner.ConfigureBrowserlessEnvironment(w.cfg.BrowserWSEndpoint)
+
+	// Configure JavaScript options
+	if runner.ShouldUseBrowserless(w.cfg) {
+		// Use Browserless with basic options
+		if jsOpts := runner.GetBrowserlessJSOptions(); jsOpts != nil {
+			opts = append(opts, scrapemateapp.WithJS(jsOpts...))
+		}
 	} else {
-		opts = append(opts,
-			scrapemateapp.WithStealth("firefox"),
-		)
+		// Use local browser configuration
+		if !job.Data.FastMode {
+			opts = append(opts,
+				scrapemateapp.WithJS(scrapemateapp.DisableImages()),
+			)
+		} else {
+			opts = append(opts,
+				scrapemateapp.WithStealth("firefox"),
+			)
+		}
 	}
 
 	hasProxy := false

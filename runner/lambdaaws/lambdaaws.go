@@ -138,9 +138,22 @@ func (l *lambdaAwsRunner) getApp(_ context.Context, input lInput, out io.Writer)
 	opts := []func(*scrapemateapp.Config) error{
 		scrapemateapp.WithConcurrency(max(1, input.Concurrency)),
 		scrapemateapp.WithExitOnInactivity(time.Minute),
-		scrapemateapp.WithJS(
+	}
+
+	// Configure Browserless environment if needed
+	runner.ConfigureBrowserlessEnvironment(l.cfg.BrowserWSEndpoint)
+
+	// Configure JavaScript options
+	if runner.ShouldUseBrowserless(l.cfg) {
+		// Use Browserless with basic options
+		if jsOpts := runner.GetBrowserlessJSOptions(); jsOpts != nil {
+			opts = append(opts, scrapemateapp.WithJS(jsOpts...))
+		}
+	} else {
+		// Use local browser configuration
+		opts = append(opts, scrapemateapp.WithJS(
 			scrapemateapp.DisableImages(),
-		),
+		))
 	}
 
 	if !input.DisablePageReuse {
