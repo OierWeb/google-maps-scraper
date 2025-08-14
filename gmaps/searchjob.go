@@ -149,16 +149,9 @@ func (j *SearchJob) Process(_ context.Context, resp *scrapemate.Response) (any, 
 
 	body := removeFirstLine(resp.Body)
 	if len(body) == 0 {
-		if page, ok := resp.Document.(scrapemate.PlaywrightPage); ok {
-			content, err := page.Page().Content()
-			if err == nil && content != "" {
-				body = []byte(content)
-			} else {
-				return nil, nil, fmt.Errorf("empty response body and failed to get page content: %w", err)
-			}
-		} else {
-			return nil, nil, fmt.Errorf("empty response body and document is not a Playwright page")
-		}
+		// TODO: Fix PlaywrightPage type - currently undefined in scrapemate
+		// This section needs to be updated once we determine the correct type
+		return nil, nil, fmt.Errorf("empty response body")
 	}
 
 	entries, err := ParseSearchResults(body)

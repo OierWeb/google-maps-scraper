@@ -2,6 +2,9 @@
 
 - [x] 1. Research scrapemate remote browser configuration
 
+
+
+
   - Investigate scrapemate documentation and source code for remote browser support
   - Determine the correct API calls to configure Playwright with remote WebSocket endpoint
   - Test connection methods with Browserless WebSocket API

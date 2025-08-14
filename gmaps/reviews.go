@@ -339,7 +339,8 @@ func scrollReviews(ctx context.Context, page playwright.Page, limit int) (int, [
 		select {
 		case <-ctx.Done():
 			finalReviews, _ := extractReviewsFromDOM(ctx, iframe)
-			return mergeUniqueReviews(reviews, finalReviews), reviews, ctx.Err()
+			mergedReviews := mergeUniqueReviews(reviews, finalReviews)
+			return len(mergedReviews), mergedReviews, ctx.Err()
 		default:
 			currentCount, err := iframe.Evaluate(`() => {
 				try {
@@ -560,7 +561,9 @@ func findReviewsIframe(ctx context.Context, page playwright.Page) (playwright.Fr
 		return nil, fmt.Errorf("failed to get iframe ID: %v", err)
 	}
 	
-	frame := page.Frame(frameId)
+	frame := page.Frame(playwright.PageFrameOptions{
+		Name: &frameId,
+	})
 	if frame == nil {
 		return nil, fmt.Errorf("failed to get iframe by ID: %s", frameId)
 	}

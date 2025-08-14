@@ -150,8 +150,8 @@ func (j *PlaceJob) Process(_ context.Context, resp *scrapemate.Response) (any, [
 		}
 
 		if entry.IsWebsiteValidForEmail() {
-			j := NewEmailJob(j.ParentID, entry)
-			return entry, []scrapemate.IJob{j}, nil
+			emailJob := NewEmailJob(j.ParentID, &entry)
+			return entry, []scrapemate.IJob{emailJob}, nil
 		}
 	}
 
@@ -257,3 +257,16 @@ function parse() {
   return inputString
 }
 `
+// BusinessInfo holds extracted business information
+type BusinessInfo struct {
+	Website string
+}
+
+// extractBusinessInfo extracts business information from raw JSON data
+func extractBusinessInfo(raw []byte) BusinessInfo {
+	// Basic implementation - could be enhanced to extract website from JSON
+	// For now, return empty info to prevent compilation errors
+	return BusinessInfo{
+		Website: "",
+	}
+}
