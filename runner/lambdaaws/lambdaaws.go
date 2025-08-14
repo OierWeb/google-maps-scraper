@@ -141,7 +141,35 @@ func (l *lambdaAwsRunner) getApp(_ context.Context, input lInput, out io.Writer)
 	}
 
 	// Configure Browserless environment if needed (check environment variable directly)
+	// Format and validate the Browserless endpoint
 	browserWSEndpoint := os.Getenv("BROWSER_WS_ENDPOINT")
+	if browserWSEndpoint != "" {
+		// Fix common formatting issues with the WebSocket URL
+		// Check if URL has a path separator before the query string
+		if strings.Contains(browserWSEndpoint, "?token=") && !strings.Contains(browserWSEndpoint, "/?token=") && !strings.Contains(browserWSEndpoint, "/?") {
+			// Convert format like ws://host:3000?token=xyz to ws://host:3000/?token=xyz
+			browserWSEndpoint = strings.Replace(browserWSEndpoint, "?token=", "/?token=", 1)
+			fmt.Printf("🔧 Fixed WebSocket URL format: %s\n", browserWSEndpoint)
+		}
+		
+		// If endpoint doesn't have token and we have a password, add it
+		if !strings.Contains(browserWSEndpoint, "token=") {
+			browserlessToken := os.Getenv("SERVICE_PASSWORD_BROWSERLESS")
+			if browserlessToken != "" {
+				// Format: ws://browserless:3000/?token=YOUR_TOKEN
+				if strings.Contains(browserWSEndpoint, "?") {
+					browserWSEndpoint += "&token=" + browserlessToken
+				} else if strings.HasSuffix(browserWSEndpoint, "/") {
+					browserWSEndpoint += "?token=" + browserlessToken
+				} else {
+					browserWSEndpoint += "/?token=" + browserlessToken
+				}
+			}
+		}
+		fmt.Printf("🔗 Final Browserless endpoint: %s\n", browserWSEndpoint)
+	}
+	
+	// Configure environment BEFORE any Playwright initialization
 	runner.ConfigureBrowserlessEnvironment(browserWSEndpoint)
 
 	// Configure JavaScript options
