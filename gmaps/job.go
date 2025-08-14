@@ -310,7 +310,7 @@ func scroll(ctx context.Context,
 
 	var currentScrollHeight int
 	// Scroll to the bottom of the page.
-	waitTime := 100.
+	waitTime := 5000.
 	cnt := 0
 
 	const (
