@@ -3,7 +3,6 @@ package runner
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/gosom/scrapemate/scrapemateapp"
 )
