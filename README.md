@@ -29,7 +29,7 @@ GoogleMapsScraper is a lightweight tool that lets you scrape business data direc
   - Websites
   - Ratings
   - Emails
-- Local web interface at [http://localhost:8080](http://localhost:8080)
+- Local web interface at [http://localhost:3000](http://localhost:3000)
 - Fast and lightweight
 - No browser automation
 - No API key needed
@@ -63,7 +63,7 @@ Prefer not to install? You can try the **online version** here:
 
 1. Download the `.dmg` file from [Releases](https://github.com/melogabriel/google-maps-scraper/releases)
 2. Open it and drag `GoogleMapsScraper.app` into your **Applications** folder
-3. Launch the app — it will open your browser at [http://localhost:8080](http://localhost:8080)
+3. Launch the app — it will open your browser at [http://localhost:3000](http://localhost:3000)
 
 ---
 
