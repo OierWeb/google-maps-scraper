@@ -294,41 +294,14 @@ func scroll(ctx context.Context,
 	scrollSelector string,
 ) (int, error) {
 	expr := `async () => {
-		// Wait for element to be available with timeout
-		const waitForElement = async (selector, timeout = 180000) => {
-			const startTime = Date.now();
-			while (Date.now() - startTime < timeout) {
-				const el = document.querySelector(selector);
-				if (el) return el;
-				await new Promise(resolve => setTimeout(resolve, 10000));
-			}
-			throw new Error('Element not found: ' + selector);
-		};
+		const el = document.querySelector("` + scrollSelector + `");
+		el.scrollTop = el.scrollHeight;
 
-		try {
-			const el = await waitForElement("` + scrollSelector + `");
-			
-			// Check if element has scrollHeight property
-			if (typeof el.scrollHeight === 'undefined') {
-				throw new Error('Element does not have scrollHeight property');
-			}
-			
-			el.scrollTop = el.scrollHeight;
-
-			return new Promise((resolve, reject) => {
-				setTimeout(() => {
-					// Double-check element still exists
-					const currentEl = document.querySelector("` + scrollSelector + `");
-					if (currentEl && typeof currentEl.scrollHeight !== 'undefined') {
-						resolve(currentEl.scrollHeight);
-					} else {
-						reject(new Error('Element became unavailable during scroll'));
-					}
-				}, %d);
-			});
-		} catch (error) {
-			throw new Error('Scroll failed: ' + error.message);
-		}
+		return new Promise((resolve, reject) => {
+  			setTimeout(() => {
+    		resolve(el.scrollHeight);
+  			}, %d);
+		});
 	}`
 
 	var currentScrollHeight int
@@ -337,9 +310,8 @@ func scroll(ctx context.Context,
 	cnt := 0
 
 	const (
-		timeout  = 90000  // Aumentado a 1.5 minutos para sitios muy lentos
-		maxWait2 = 180000 // Aumentado a 3 minutos máximo por iteración
-		elementWaitTimeout = 15000 // 15 segundos para esperar que aparezca el elemento
+		timeout  = 10000
+		maxWait2 = 40000
 	)
 
 	for i := 0; i < maxDepth; i++ {
@@ -353,16 +325,7 @@ func scroll(ctx context.Context,
 		// Scroll to the bottom of the page.
 		scrollHeight, err := page.Evaluate(fmt.Sprintf(expr, waitTime2))
 		if err != nil {
-			// Log the error for debugging but continue trying
-			fmt.Printf("Scroll attempt %d failed: %v. Retrying...\n", cnt, err)
-			
-			// If it's the first few attempts, wait a bit longer and retry
-			if cnt <= 3 {
-				page.WaitForTimeout(5000) // Wait 5 seconds before retry
-				continue
-			}
-			
-			return cnt, fmt.Errorf("scroll failed after %d attempts: %w", cnt, err)
+			return cnt, err
 		}
 
 		height, ok := scrollHeight.(int)
