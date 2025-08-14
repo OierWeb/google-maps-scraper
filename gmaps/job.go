@@ -234,6 +234,21 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	scrollSelector := `div[role='feed']`
 
+	// Wait for scroll element to be available before attempting to scroll
+	// This prevents the "Cannot read properties of null" error
+	scrollLocator := page.Locator(scrollSelector)
+	err = scrollLocator.WaitFor(playwright.LocatorWaitForOptions{
+		State:   playwright.WaitForSelectorStateAttached,
+		Timeout: playwright.Float(180000), // 180 seconds for VPS and anti-bot measures
+	})
+	if err != nil {
+		resp.Error = fmt.Errorf("scroll element not found after 180s: %w", err)
+		return resp
+	}
+
+	// Additional wait to ensure element is fully loaded
+	page.WaitForTimeout(10000) // 10 seconds extra wait
+
 	_, err = scroll(ctx, page, j.MaxDepth, scrollSelector)
 	if err != nil {
 		resp.Error = err
