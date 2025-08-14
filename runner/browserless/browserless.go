@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/url"
 	"strings"
 
-	"github.com/gosom/scrapemate"
+	"github.com/gosom/google-maps-scraper/runner"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -31,9 +30,9 @@ func NewBrowserlessLauncher(wsURL string, browserType string, headless bool, slo
 	}
 }
 
-// Launch implements the scrapemate.BrowserLauncher interface
-func (bl *BrowserlessLauncher) Launch(ctx context.Context) (scrapemate.Browser, error) {
-	log.Printf("[BROWSERLESS] Launching browser with WebSocket URL: %s", redactToken(bl.wsURL))
+// Launch implements the BrowserLauncher interface
+func (bl *BrowserlessLauncher) Launch(ctx context.Context) (interface{}, error) {
+	log.Printf("[BROWSERLESS] Launching browser with WebSocket URL: %s", runner.RedactToken(bl.wsURL))
 	
 	// Initialize Playwright
 	pw, err := playwright.Run()
@@ -41,23 +40,26 @@ func (bl *BrowserlessLauncher) Launch(ctx context.Context) (scrapemate.Browser, 
 		return nil, fmt.Errorf("could not start playwright: %w", err)
 	}
 
-	// Determine browser type
-	var browserType *playwright.BrowserType
+	// Connect to Browserless instance
+	log.Printf("[BROWSERLESS] Connecting to remote browser at %s", runner.RedactToken(bl.wsURL))
+	
+	// Determine browser type and connect
+	var browser playwright.Browser
+	var connectErr error
+	
 	switch strings.ToLower(bl.browserType) {
 	case "firefox":
-		browserType = pw.Firefox
+		browser, connectErr = pw.Firefox.Connect(bl.wsURL)
 	case "webkit":
-		browserType = pw.WebKit
+		browser, connectErr = pw.WebKit.Connect(bl.wsURL)
 	default:
-		browserType = pw.Chromium
+		browser, connectErr = pw.Chromium.Connect(bl.wsURL)
 	}
 
-	// Connect to Browserless instance
-	log.Printf("[BROWSERLESS] Connecting to remote browser at %s", redactToken(bl.wsURL))
-	browser, err := browserType.Connect(bl.wsURL)
-	if err != nil {
+	// Check connection result
+	if connectErr != nil {
 		pw.Stop()
-		return nil, fmt.Errorf("could not connect to browserless: %w", err)
+		return nil, fmt.Errorf("could not connect to browserless: %w", connectErr)
 	}
 
 	log.Printf("[BROWSERLESS] Successfully connected to remote browser")
@@ -69,14 +71,14 @@ func (bl *BrowserlessLauncher) Launch(ctx context.Context) (scrapemate.Browser, 
 	}, nil
 }
 
-// BrowserlessPlaywrightBrowser implements the scrapemate.Browser interface
+// BrowserlessPlaywrightBrowser implements the Browser interface
 type BrowserlessPlaywrightBrowser struct {
 	pw      *playwright.Playwright
 	browser playwright.Browser
 }
 
-// NewPage implements the scrapemate.Browser interface
-func (b *BrowserlessPlaywrightBrowser) NewPage(ctx context.Context) (scrapemate.Page, error) {
+// NewPage implements the Browser interface
+func (b *BrowserlessPlaywrightBrowser) NewPage(ctx context.Context) (interface{}, error) {
 	log.Printf("[BROWSERLESS] Creating new page")
 	
 	// Create a new browser context
@@ -100,7 +102,7 @@ func (b *BrowserlessPlaywrightBrowser) NewPage(ctx context.Context) (scrapemate.
 	}, nil
 }
 
-// Close implements the scrapemate.Browser interface
+// Close implements the Browser interface
 func (b *BrowserlessPlaywrightBrowser) Close() error {
 	log.Printf("[BROWSERLESS] Closing browser")
 	
@@ -116,13 +118,13 @@ func (b *BrowserlessPlaywrightBrowser) Close() error {
 	return nil
 }
 
-// BrowserlessPlaywrightPage implements the scrapemate.Page interface
+// BrowserlessPlaywrightPage implements the Page interface
 type BrowserlessPlaywrightPage struct {
 	page    playwright.Page
 	context playwright.BrowserContext
 }
 
-// Goto implements the scrapemate.Page interface
+// Goto implements the Page interface
 func (p *BrowserlessPlaywrightPage) Goto(ctx context.Context, url string) error {
 	log.Printf("[BROWSERLESS] Navigating to %s", url)
 	
@@ -136,7 +138,7 @@ func (p *BrowserlessPlaywrightPage) Goto(ctx context.Context, url string) error 
 	return nil
 }
 
-// Content implements the scrapemate.Page interface
+// Content implements the Page interface
 func (p *BrowserlessPlaywrightPage) Content(ctx context.Context) (string, error) {
 	log.Printf("[BROWSERLESS] Getting page content")
 	
@@ -149,7 +151,7 @@ func (p *BrowserlessPlaywrightPage) Content(ctx context.Context) (string, error)
 	return content, nil
 }
 
-// Screenshot implements the scrapemate.Page interface
+// Screenshot implements the Page interface
 func (p *BrowserlessPlaywrightPage) Screenshot(ctx context.Context, path string) error {
 	log.Printf("[BROWSERLESS] Taking screenshot to %s", path)
 	
@@ -165,7 +167,7 @@ func (p *BrowserlessPlaywrightPage) Screenshot(ctx context.Context, path string)
 	return nil
 }
 
-// Evaluate implements the scrapemate.Page interface
+// Evaluate implements the Page interface
 func (p *BrowserlessPlaywrightPage) Evaluate(ctx context.Context, js string) (interface{}, error) {
 	log.Printf("[BROWSERLESS] Evaluating JavaScript")
 	
@@ -178,7 +180,7 @@ func (p *BrowserlessPlaywrightPage) Evaluate(ctx context.Context, js string) (in
 	return result, nil
 }
 
-// Close implements the scrapemate.Page interface
+// Close implements the Page interface
 func (p *BrowserlessPlaywrightPage) Close() error {
 	log.Printf("[BROWSERLESS] Closing page")
 	
@@ -201,18 +203,3 @@ func (p *BrowserlessPlaywrightPage) GetPlaywrightPage() playwright.Page {
 	return p.page
 }
 
-// redactToken redacts the token from a WebSocket URL for logging purposes
-func redactToken(wsURL string) string {
-	parsedURL, err := url.Parse(wsURL)
-	if err != nil {
-		return wsURL
-	}
-	
-	query := parsedURL.Query()
-	if token := query.Get("token"); token != "" {
-		query.Set("token", "[REDACTED]")
-		parsedURL.RawQuery = query.Encode()
-	}
-	
-	return parsedURL.String()
-}

@@ -360,17 +360,14 @@ func (w *webrunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Conf
 	log.Printf("[WEBRUNNER-BROWSERLESS] Starting scrapemate configuration for job %s", job.ID)
 	
 	// Build WebSocket URL with authentication
-	wsURL, err := w.cfg.GetBrowserlessWebSocketURL()
+	wsURL, err := runner.BuildBrowserlessWebSocketURL(w.cfg.BrowserlessURL, w.cfg.BrowserlessToken)
 	if err != nil {
 		log.Printf("[WEBRUNNER-BROWSERLESS] Error: Failed to build WebSocket URL: %v", err)
 		return fmt.Errorf("failed to build browserless WebSocket URL: %w", err)
 	}
 
 	// Log configuration safely (redact token)
-	safeURL := wsURL
-	if w.cfg.BrowserlessToken != "" {
-		safeURL = strings.Replace(wsURL, w.cfg.BrowserlessToken, "[REDACTED]", -1)
-	}
+	safeURL := runner.RedactToken(wsURL)
 	log.Printf("[WEBRUNNER-BROWSERLESS] WebSocket URL built: %s", safeURL)
 
 	// Create a custom browser launcher for Browserless
