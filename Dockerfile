@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && go install github.com/playwright-community/playwright-go/cmd/playwright@latest \
     && mkdir -p /opt/browsers \
-    && playwright install chromium --with-deps
+    && playwright install firefox --with-deps
 
 # Build stage
 FROM golang:1.24.0-bullseye AS builder
