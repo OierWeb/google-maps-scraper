@@ -206,7 +206,8 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	if err != nil {
 		//waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*5)
-		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*15)
+		//waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*15)
+		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*60)
 		defer waitCancel()
 
 		singlePlace = waitUntilURLContains(waitCtx, page, "/maps/place/")
