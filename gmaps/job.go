@@ -2,6 +2,7 @@ package gmaps
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -232,10 +233,33 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		return resp
 	}
 
+	// Capturar el HTML antes de intentar hacer scroll
+	htmlBeforeScroll, htmlErr := page.Content()
+	if htmlErr == nil {
+		fmt.Printf("HTML completo antes de scroll: %s\n", htmlBeforeScroll)
+	} else {
+		fmt.Printf("Error al obtener HTML antes de scroll: %v\n", htmlErr)
+	}
+	
 	_, err = scroll(ctx, page, j.MaxDepth)
 	if err != nil {
+		// Si hay error en el scroll, intentamos capturar más información
+		fmt.Printf("Error durante scroll: %v\n", err)
+		
+		// Intentamos obtener una captura de pantalla en base64
+		screenshotBytes, screenshotErr := page.Screenshot(playwright.PageScreenshotOptions{
+			FullPage: playwright.Bool(true),
+		})
+		
+		if screenshotErr == nil {
+			// Convertir a base64
+			screenshotBase64 := base64.StdEncoding.EncodeToString(screenshotBytes)
+			fmt.Printf("Captura de pantalla en base64: %s\n", screenshotBase64)
+		} else {
+			fmt.Printf("Error al obtener captura de pantalla: %v\n", screenshotErr)
+		}
+		
 		resp.Error = err
-
 		return resp
 	}
 
