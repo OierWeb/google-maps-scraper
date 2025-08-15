@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"log"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
