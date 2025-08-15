@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && go install github.com/playwright-community/playwright-go/cmd/playwright@latest \
+    && go install github.com/playwright-community/playwright-go/cmd/playwright@v0.5200.0 \
     && mkdir -p /opt/browsers \
-    && playwright install firefox --with-deps
+    && playwright install chromium --with-deps
 
 # Build stage
 FROM golang:1.24.4-bullseye AS builder

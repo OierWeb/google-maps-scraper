@@ -22,7 +22,7 @@ func New(cfg *runner.Config) (runner.Runner, error) {
 func (i *installer) Run(context.Context) error {
 	opts := []*playwright.RunOptions{
 		{
-			Browsers: []string{"firefox"},
+			Browsers: []string{"chromium"},
 		},
 	}
 
