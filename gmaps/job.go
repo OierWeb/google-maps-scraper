@@ -25,9 +25,8 @@ type GmapJob struct {
 	LangCode     string
 	ExtractEmail bool
 
-	Deduper             deduper.Deduper
-	ExitMonitor         exiter.Exiter
-	ExtractExtraReviews bool
+	Deduper     deduper.Deduper
+	ExitMonitor exiter.Exiter
 }
 
 func NewGmapJob(
@@ -90,12 +89,6 @@ func WithExitMonitor(e exiter.Exiter) GmapJobOptions {
 	}
 }
 
-func WithExtraReviews() GmapJobOptions {
-	return func(j *GmapJob) {
-		j.ExtractExtraReviews = true
-	}
-}
-
 func (j *GmapJob) UseInResults() bool {
 	return false
 }
@@ -121,7 +114,7 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 			jopts = append(jopts, WithPlaceJobExitMonitor(j.ExitMonitor))
 		}
 
-		placeJob := NewPlaceJob(j.ID, j.LangCode, resp.URL, j.ExtractEmail, j.ExtractExtraReviews, jopts...)
+		placeJob := NewPlaceJob(j.ID, j.LangCode, resp.URL, j.ExtractEmail, jopts...)
 
 		next = append(next, placeJob)
 	} else {
@@ -132,7 +125,7 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 					jopts = append(jopts, WithPlaceJobExitMonitor(j.ExitMonitor))
 				}
 
-				nextJob := NewPlaceJob(j.ID, j.LangCode, href, j.ExtractEmail, j.ExtractExtraReviews, jopts...)
+				nextJob := NewPlaceJob(j.ID, j.LangCode, href, j.ExtractEmail, jopts...)
 
 				if j.Deduper == nil || j.Deduper.AddIfNotExists(ctx, href) {
 					next = append(next, nextJob)
@@ -197,21 +190,20 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	//nolint:staticcheck // TODO replace with the new playwright API
 	_, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
-		Timeout: playwright.Float(700),
+		Timeout: playwright.Float(500),
 	})
 
-	var singlePlace bool
-
 	if err != nil {
-		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*5)
-		defer waitCancel()
+		select {
+		case <-ctx.Done():
+			resp.Error = ctx.Err()
 
-		singlePlace = waitUntilURLContains(waitCtx, page, "/maps/place/")
-
-		waitCancel()
+			return resp
+		case <-time.After(3 * time.Second):
+		}
 	}
 
-	if singlePlace {
+	if strings.Contains(page.URL(), "/maps/place/") {
 		resp.URL = page.URL()
 
 		var body string
@@ -227,9 +219,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		return resp
 	}
 
-	scrollSelector := `div[role='feed']`
-
-	_, err = scroll(ctx, page, j.MaxDepth, scrollSelector)
+	_, err = scroll(ctx, page, j.MaxDepth)
 	if err != nil {
 		resp.Error = err
 
@@ -245,22 +235,6 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 	resp.Body = []byte(body)
 
 	return resp
-}
-
-func waitUntilURLContains(ctx context.Context, page playwright.Page, s string) bool {
-	ticker := time.NewTicker(time.Millisecond * 150)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		case <-ticker.C:
-			if strings.Contains(page.URL(), s) {
-				return true
-			}
-		}
-	}
 }
 
 func clickRejectCookiesIfRequired(page playwright.Page) error {
@@ -286,11 +260,8 @@ func clickRejectCookiesIfRequired(page playwright.Page) error {
 	return el.Click()
 }
 
-func scroll(ctx context.Context,
-	page playwright.Page,
-	maxDepth int,
-	scrollSelector string,
-) (int, error) {
+func scroll(ctx context.Context, page playwright.Page, maxDepth int) (int, error) {
+	scrollSelector := `div[role='feed']`
 	expr := `async () => {
 		const el = document.querySelector("` + scrollSelector + `");
 		el.scrollTop = el.scrollHeight;
