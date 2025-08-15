@@ -620,10 +620,20 @@ func stringify(v any) string {
 		return val
 	case float64:
 		return fmt.Sprintf("%f", val)
+	case int:
+		return fmt.Sprintf("%d", val)
+	case int64:
+		return fmt.Sprintf("%d", val)
+	case bool:
+		return fmt.Sprintf("%t", val)
 	case nil:
 		return ""
 	default:
-		d, _ := json.Marshal(v)
+		d, err := json.Marshal(v)
+		if err != nil {
+			// If JSON marshaling fails, try to convert to string representation
+			return fmt.Sprintf("%v", v)
+		}
 		return string(d)
 	}
 }

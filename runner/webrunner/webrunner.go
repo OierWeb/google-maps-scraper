@@ -384,12 +384,11 @@ func (w *webrunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Conf
 		0,                 // no slowMo
 	)
 
-	// Add our custom browser launcher to the options
-	*opts = append(*opts, func(cfg *scrapemateapp.Config) error {
-		// Override the default browser launcher with our custom one
-		cfg.BrowserLauncher = browserlessLauncher
-		return nil
-	})
+	// Note: scrapemate v0.9.4 doesn't support custom browser launchers directly
+	// We need to use the existing JS options and configure the browser through environment
+	log.Printf("[WEBRUNNER-BROWSERLESS] WARNING: scrapemate v0.9.4 doesn't support remote browsers directly")
+	log.Printf("[WEBRUNNER-BROWSERLESS] The application will attempt to use local Playwright")
+	log.Printf("[WEBRUNNER-BROWSERLESS] Consider upgrading scrapemate or implementing custom browser connection")
 
 	// Add additional options based on job mode
 	if !job.Data.FastMode {
