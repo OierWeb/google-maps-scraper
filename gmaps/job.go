@@ -252,7 +252,8 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 }
 
 func waitUntilURLContains(ctx context.Context, page playwright.Page, s string) bool {
-	ticker := time.NewTicker(time.Millisecond * 150)
+	//ticker := time.NewTicker(time.Millisecond * 150)
+	ticker := time.NewTicker(time.Millisecond * 600)
 	defer ticker.Stop()
 
 	for {
