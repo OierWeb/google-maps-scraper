@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"log"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -102,15 +101,15 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 
 	log := scrapemate.GetLoggerFromContext(ctx)
 	// Log de información básica de la respuesta
-	log.Printf("URL recibida: %s", resp.URL)
-	log.Printf("Código de estado: %d", resp.StatusCode)
-	log.Printf("Tamaño del HTML: %d bytes", len(resp.Body))
+	log.Info(fmt.Sprintf("URL recibida: %s", resp.URL))
+	log.Info(fmt.Sprintf("Código de estado: %d", resp.StatusCode))
+	log.Info(fmt.Sprintf("Tamaño del HTML: %d bytes", len(resp.Body)))
 	
 	// Log del HTML completo
-	log.Printf("HTML completo: %s", string(resp.Body))
+	log.Info(fmt.Sprintf("HTML completo: %s", string(resp.Body)))
 	
 	// Log de headers importantes
-	log.Printf("Content-Type: %s", resp.Headers.Get("Content-Type"))
+	log.Info(fmt.Sprintf("Content-Type: %s", resp.Headers.Get("Content-Type")))
 
 	doc, ok := resp.Document.(*goquery.Document)
 	if !ok {
@@ -225,6 +224,9 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 			return resp
 		}
 
+		// Log del HTML completo para una única ubicación
+		fmt.Printf("BrowserActions (single place) - HTML completo: %s\n", body)
+
 		resp.Body = []byte(body)
 
 		return resp
@@ -242,6 +244,9 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		resp.Error = err
 		return resp
 	}
+
+	// Log del HTML completo en BrowserActions
+	fmt.Printf("BrowserActions - HTML completo: %s\n", body)
 
 	resp.Body = []byte(body)
 
