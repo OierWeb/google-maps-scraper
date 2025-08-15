@@ -376,14 +376,6 @@ func (w *webrunner) configureBrowserlessOptions(opts *[]func(*scrapemateapp.Conf
 		browserType = "firefox"
 	}
 
-	// Create our custom Browserless launcher
-	browserlessLauncher := browserless.NewBrowserlessLauncher(
-		wsURL,
-		browserType,
-		!job.Data.FastMode, // headless mode when not in fast mode
-		0,                 // no slowMo
-	)
-
 	// Note: scrapemate v0.9.4 doesn't support custom browser launchers directly
 	// We need to use the existing JS options and configure the browser through environment
 	log.Printf("[WEBRUNNER-BROWSERLESS] WARNING: scrapemate v0.9.4 doesn't support remote browsers directly")

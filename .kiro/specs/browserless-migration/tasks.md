@@ -2,18 +2,12 @@
 
 - [x] 1. Research scrapemate remote browser configuration
 
-
-
-
   - Investigate scrapemate documentation and source code for remote browser support
   - Determine the correct API calls to configure Playwright with remote WebSocket endpoint
   - Test connection methods with Browserless WebSocket API
   - _Requirements: 1.1, 1.2_
 
 - [x] 2. Add Browserless configuration to runner Config struct
-
-
-
 
   - Add BrowserlessURL, BrowserlessToken, and UseBrowserless fields to Config struct in runner/runner.go
   - Implement environment variable parsing for BROWSERLESS_URL, BROWSERLESS_TOKEN, USE_BROWSERLESS
@@ -63,11 +57,7 @@
   - Maintain backward compatibility for local Playwright usage
   - _Requirements: 4.1, 4.2, 4.3_
 
-
 - [x] 9. Create integration tests for Browserless functionality
-
-
-
 
   - Write tests to verify successful connection to Browserless endpoint
   - Create tests to compare scraping results between local and remote browser
@@ -75,11 +65,6 @@
   - _Requirements: 1.1, 1.2, 3.1_
 
 - [x] 10. Update Docker configuration for Browserless deployment
-
-
-
-
-
 
   - Modify Dockerfile to remove Chromium installation when using Browserless
 
@@ -89,21 +74,12 @@
 
 - [x] 11. Add comprehensive error handling and logging
 
-
-
-
-
-
   - Implement detailed error messages for Browserless connection failures
   - Add debug logging for Browserless configuration and connection attempts
   - Ensure sensitive information (tokens) are not logged
   - _Requirements: 2.3, 1.2_
 
 - [x] 12. Create configuration validation and fallback logic
-
-
-
-
 
   - Implement validation for Browserless URL format and reachability
   - Add fallback mechanism to local Playwright if Browserless is unavailable (optional)
