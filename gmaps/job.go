@@ -100,7 +100,16 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 	}()
 
 	log := scrapemate.GetLoggerFromContext(ctx)
-	log.Info(fmt.Sprintf("HTML recibido PRUEBAAA: %s", string(resp.Body)))
+	// Log de información básica de la respuesta
+	log.Printf("URL recibida: %s", resp.URL)
+	log.Printf("Código de estado: %d", resp.StatusCode)
+	log.Printf("Tamaño del HTML: %d bytes", len(resp.Body))
+	
+	// Log del HTML completo
+	log.Printf("HTML completo: %s", string(resp.Body))
+	
+	// Log de headers importantes
+	log.Printf("Content-Type: %s", resp.Headers.Get("Content-Type"))
 
 	doc, ok := resp.Document.(*goquery.Document)
 	if !ok {
