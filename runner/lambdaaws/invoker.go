@@ -128,7 +128,6 @@ func (i *invoker) setPayloads(cfg *runner.Config) error {
 				Concurrency:  cfg.Concurrency,
 				Language:     cfg.LangCode,
 				FunctionName: cfg.FunctionName,
-				ExtraReviews: cfg.ExtraReviews,
 			}
 			i.payloads = append(i.payloads, payload)
 
@@ -147,7 +146,6 @@ func (i *invoker) setPayloads(cfg *runner.Config) error {
 			Concurrency:  cfg.Concurrency,
 			Language:     cfg.LangCode,
 			FunctionName: cfg.FunctionName,
-			ExtraReviews: cfg.ExtraReviews,
 		}
 		i.payloads = append(i.payloads, payload)
 	}

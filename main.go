@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -45,7 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := runnerInstance.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+	if err := runnerInstance.Run(ctx); err != nil {
 		os.Stderr.WriteString(err.Error() + "\n")
 
 		_ = runnerInstance.Close(ctx)
