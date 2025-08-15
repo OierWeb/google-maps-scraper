@@ -100,6 +100,7 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 	}()
 
 	log := scrapemate.GetLoggerFromContext(ctx)
+	log.Info(fmt.Sprintf("HTML recibido PRUEBAAA: %s", string(resp.Body)))
 
 	doc, ok := resp.Document.(*goquery.Document)
 	if !ok {
