@@ -2,7 +2,6 @@ package gmaps
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -101,16 +100,6 @@ func (j *GmapJob) Process(ctx context.Context, resp *scrapemate.Response) (any, 
 	}()
 
 	log := scrapemate.GetLoggerFromContext(ctx)
-	// Log de información básica de la respuesta
-	log.Info(fmt.Sprintf("URL recibida: %s", resp.URL))
-	log.Info(fmt.Sprintf("Código de estado: %d", resp.StatusCode))
-	log.Info(fmt.Sprintf("Tamaño del HTML: %d bytes", len(resp.Body)))
-	
-	// Log del HTML completo
-	log.Info(fmt.Sprintf("HTML completo: %s", string(resp.Body)))
-	
-	// Log de headers importantes
-	log.Info(fmt.Sprintf("Content-Type: %s", resp.Headers.Get("Content-Type")))
 
 	doc, ok := resp.Document.(*goquery.Document)
 	if !ok {
@@ -225,41 +214,15 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 			return resp
 		}
 
-		// Log del HTML completo para una única ubicación
-		fmt.Printf("BrowserActions (single place) - HTML completo: %s\n", body)
-
 		resp.Body = []byte(body)
 
 		return resp
 	}
 
-	// Capturar el HTML antes de intentar hacer scroll
-	htmlBeforeScroll, htmlErr := page.Content()
-	if htmlErr == nil {
-		fmt.Printf("HTML completo antes de scroll: %s\n", htmlBeforeScroll)
-	} else {
-		fmt.Printf("Error al obtener HTML antes de scroll: %v\n", htmlErr)
-	}
-	
 	_, err = scroll(ctx, page, j.MaxDepth)
 	if err != nil {
-		// Si hay error en el scroll, intentamos capturar más información
-		fmt.Printf("Error durante scroll: %v\n", err)
-		
-		// Intentamos obtener una captura de pantalla en base64
-		screenshotBytes, screenshotErr := page.Screenshot(playwright.PageScreenshotOptions{
-			FullPage: playwright.Bool(true),
-		})
-		
-		if screenshotErr == nil {
-			// Convertir a base64
-			screenshotBase64 := base64.StdEncoding.EncodeToString(screenshotBytes)
-			fmt.Printf("Captura de pantalla en base64: %s\n", screenshotBase64)
-		} else {
-			fmt.Printf("Error al obtener captura de pantalla: %v\n", screenshotErr)
-		}
-		
 		resp.Error = err
+
 		return resp
 	}
 
@@ -268,9 +231,6 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		resp.Error = err
 		return resp
 	}
-
-	// Log del HTML completo en BrowserActions
-	fmt.Printf("BrowserActions - HTML completo: %s\n", body)
 
 	resp.Body = []byte(body)
 
