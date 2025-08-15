@@ -78,6 +78,7 @@ type Config struct {
 	Radius                   float64
 	Addr                     string
 	DisablePageReuse         bool
+	ExtraReviews             bool
 }
 
 func ParseConfig() *Config {
@@ -121,8 +122,9 @@ func ParseConfig() *Config {
 	flag.IntVar(&cfg.AwsLambdaChunkSize, "aws-lambda-chunk-size", 100, "AWS Lambda chunk size")
 	flag.BoolVar(&cfg.FastMode, "fast-mode", false, "fast mode (reduced data collection)")
 	flag.Float64Var(&cfg.Radius, "radius", 10000, "search radius in meters. Default is 10000 meters")
-	flag.StringVar(&cfg.Addr, "addr", ":3000", "address to listen on for web server")
+	flag.StringVar(&cfg.Addr, "addr", ":8080", "address to listen on for web server")
 	flag.BoolVar(&cfg.DisablePageReuse, "disable-page-reuse", false, "disable page reuse in playwright")
+	flag.BoolVar(&cfg.ExtraReviews, "extra-reviews", false, "enable extra reviews collection")
 
 	flag.Parse()
 
@@ -292,8 +294,8 @@ func banner(messages []string, width int) string {
 
 func Banner() {
 	message1 := "🌍 Google Maps Scraper"
-	message2 := "⭐ If you find this project useful, please star it on GitHub: https://github.com/melogabriel/google-maps-scraper"
-	message3 := "💖 Follow on GitHub: https://github.com/melogabriel"
+	message2 := "⭐ If you find this project useful, please star it on GitHub: https://github.com/gosom/google-maps-scraper"
+	message3 := "💖 Consider sponsoring to support development: https://github.com/sponsors/gosom"
 
 	fmt.Fprintln(os.Stderr, banner([]string{message1, message2, message3}, 0))
 }
