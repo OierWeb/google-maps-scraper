@@ -170,8 +170,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 		return resp
 	}
 
-	//const defaultTimeout = 5000
-	const defaultTimeout = 15000
+	const defaultTimeout = 5000
 
 	err = page.WaitForURL(page.URL(), playwright.PageWaitForURLOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
@@ -198,16 +197,13 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 
 	//nolint:staticcheck // TODO replace with the new playwright API
 	_, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
-		//Timeout: playwright.Float(700),
-		Timeout: playwright.Float(10000),
+		Timeout: playwright.Float(700),
 	})
 
 	var singlePlace bool
 
 	if err != nil {
-		//waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*5)
-		//waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*15)
-		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*60)
+		waitCtx, waitCancel := context.WithTimeout(ctx, time.Second*5)
 		defer waitCancel()
 
 		singlePlace = waitUntilURLContains(waitCtx, page, "/maps/place/")
@@ -252,8 +248,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 }
 
 func waitUntilURLContains(ctx context.Context, page playwright.Page, s string) bool {
-	//ticker := time.NewTicker(time.Millisecond * 150)
-	ticker := time.NewTicker(time.Millisecond * 600)
+	ticker := time.NewTicker(time.Millisecond * 150)
 	defer ticker.Stop()
 
 	for {
