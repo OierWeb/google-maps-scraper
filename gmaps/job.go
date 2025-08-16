@@ -199,7 +199,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 	// _, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
 	// 	Timeout: playwright.Float(700),
 	// })
-	_, err = page.Locator(sel).WaitFor(playwright.LocatorWaitForOptions{
+	err := page.Locator(sel).WaitFor(playwright.LocatorWaitForOptions{
 		Timeout: playwright.Float(700),
 	})
 
@@ -277,21 +277,13 @@ func clickRejectCookiesIfRequired(page playwright.Page) error {
 	// 	Timeout: playwright.Float(timeout),
 	// })
 	locator := page.Locator(sel)
-	if err := locator.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(timeout)}); err != nil {
-		return nil // o manejar error
-	}
-	return locator.Click()
-
+	err := locator.WaitFor(playwright.LocatorWaitForOptions{
+		Timeout: playwright.Float(timeout),
+	})
 	if err != nil {
 		return nil
 	}
-
-	if el == nil {
-		return nil
-	}
-
-	//nolint:staticcheck // TODO replace with the new playwright API
-	return el.Click()
+	return locator.Click()
 }
 
 func scroll(ctx context.Context,
