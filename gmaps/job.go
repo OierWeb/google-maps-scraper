@@ -199,7 +199,7 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 	// _, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
 	// 	Timeout: playwright.Float(700),
 	// })
-	err := page.Locator(sel).WaitFor(playwright.LocatorWaitForOptions{
+	err = page.Locator(sel).WaitFor(playwright.LocatorWaitForOptions{
 		Timeout: playwright.Float(700),
 	})
 
