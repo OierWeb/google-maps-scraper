@@ -267,7 +267,7 @@ func clickRejectCookiesIfRequired(page playwright.Page) error {
 	// click the cookie reject button if exists
 	sel := `form[action="https://consent.google.com/save"]:first-of-type button:first-of-type`
 
-	const timeout = 500
+	const timeout = 5000
 
 	//nolint:staticcheck // TODO replace with the new playwright API
 	el, err := page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
