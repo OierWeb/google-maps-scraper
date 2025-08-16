@@ -195,8 +195,11 @@ func (j *GmapJob) BrowserActions(ctx context.Context, page playwright.Page) scra
 	// check element scroll
 	sel := `div[role='feed']`
 
-	//nolint:staticcheck // TODO replace with the new playwright API
-	_, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
+	//nolint:staticcheck // TODO replace with the new playwright API (Reemplazado)
+	// _, err = page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
+	// 	Timeout: playwright.Float(700),
+	// })
+	_, err = page.Locator(sel).WaitFor(playwright.LocatorWaitForOptions{
 		Timeout: playwright.Float(700),
 	})
 
@@ -269,10 +272,15 @@ func clickRejectCookiesIfRequired(page playwright.Page) error {
 
 	const timeout = 500
 
-	//nolint:staticcheck // TODO replace with the new playwright API
-	el, err := page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
-		Timeout: playwright.Float(timeout),
-	})
+	//nolint:staticcheck // TODO replace with the new playwright API (Reemplazado)
+	// el, err := page.WaitForSelector(sel, playwright.PageWaitForSelectorOptions{
+	// 	Timeout: playwright.Float(timeout),
+	// })
+	locator := page.Locator(sel)
+	if err := locator.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(timeout)}); err != nil {
+		return nil // o manejar error
+	}
+	return locator.Click()
 
 	if err != nil {
 		return nil
@@ -349,8 +357,9 @@ func scroll(ctx context.Context,
 			waitTime = maxWait2
 		}
 
-		//nolint:staticcheck // TODO replace with the new playwright API
-		page.WaitForTimeout(waitTime)
+		//nolint:staticcheck // TODO replace with the new playwright API (Reemplazado)
+		//page.WaitForTimeout(waitTime) // sigue funcionando, pero se prefiere:
+		time.Sleep(time.Duration(waitTime) * time.Millisecond)
 	}
 
 	return cnt, nil
